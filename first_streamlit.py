@@ -13,6 +13,6 @@ col3.metric("Humidity", "86%", "4%")
 
 df = pd.DataFrame(
    np.random.randn(10, 5),
-   columns=('col {i}' for i in range(5)))
+   columns=(f'col {i}' for i in range(5)))
 
 st.table(df)
