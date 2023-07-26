@@ -10,7 +10,7 @@ st.header('Training dataset exploration')
 
 #st.checkbox("Use container width", value=False, key="use_container_width")
 
-df_train = pd.read_csv(r'C:\Users\ferna\Desktop\Python_files\Arquivos de dados\titanic_train.csv')
+df_train = pd.read_csv(r'https://github.com/fsguerreiro/my_portfolio/blob/main/titanic_train.csv')
 df_test = pd.read_csv(r'C:\Users\ferna\Desktop\Python_files\Arquivos de dados\titanic_test.csv')
 
 tab1, tab2, tab3 = st.tabs(["First rows", "Last rows", "Full training dataset"])
