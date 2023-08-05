@@ -77,8 +77,8 @@ st.title('The Titanic dataset', anchor='titanic_train',
          help='This dataset is available on [kaggle](https://www.kaggle.com/competitions/titanic).')
 st.header('Training dataset visualization')
 
-df_train = pd.read_csv(r'https://github.com/fsguerreiro/my_portfolio/blob/main/Streamlit_files/titanic_train.csv')
-df_test = pd.read_csv(r'https://github.com/fsguerreiro/my_portfolio/blob/main/Streamlit_files/titanic_test.csv')
+df_train = pd.read_csv(r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/titanic_train.csv')
+df_test = pd.read_csv(r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/titanic_test.csv')
 
 df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
 
