@@ -14,6 +14,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 # Building functions:
 
+@st.cache_data
 def show_hist(dataframe, column):
     figg = px.histogram(dataframe, column)
     figg.update_layout(xaxis_title=column, yaxis_title="Frequency", font={'size': 14, 'color': 'black'},
@@ -23,6 +24,7 @@ def show_hist(dataframe, column):
     st.plotly_chart(figg, theme=None, use_container_width=True)
 
 
+@st.cache_data
 def show_heatmap(dataframe):
     df_heatmap = dataframe.copy()
     df_heatmap.Sex.replace(['male', 'female'], [0, 1], inplace=True)
@@ -69,6 +71,15 @@ def make_filter():
 
     return df_filter, apply_filter
 
+
+@st.cache_data
+def load_data():
+    train = pd.read_csv(
+        r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_train.csv')
+    test = pd.read_csv(
+        r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_test.csv')
+    return train, test
+
 # ----------------------------------------------------------------------------------------------------------------------
 # Page title, datasets download, and defining types of variables:
 
@@ -85,10 +96,10 @@ st.header('Training dataset visualization')
 # df_test = pd.read_csv(r'C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de '
 #                      r'python\my_portfolio\Streamlit_files\titanic_test.csv')
 
-df_train = pd.read_csv(
-    r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_train.csv')
-df_test = pd.read_csv(
-    r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_test.csv')
+
+data_load_state = st.text('Loading data...')
+df_train, df_test = load_data()
+data_load_state.text("Done! (using st.cache_data)")
 
 
 df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
@@ -225,6 +236,7 @@ for idx, tabb in enumerate(name_cat):
             show_hist(df_cat, coluna)
 
 st.divider()
+
 # ----------------------------------------------------------------------------------------------------------------------
 
 st.subheader('Variables interaction')
