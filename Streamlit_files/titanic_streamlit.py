@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+# import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
 from sklearn import svm, preprocessing, impute, tree
-from sklearn.model_selection import train_test_split, cross_val_score, RandomizedSearchCV
+from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.pipeline import Pipeline
@@ -73,12 +73,20 @@ def make_filter():
 # Page title, datasets download, and defining types of variables:
 
 st.set_page_config(page_title='The Titanic dataset', layout='wide')
+
+
+
+
+
+
 st.title('The Titanic dataset', anchor='titanic_train',
          help='This dataset is available on [kaggle](https://www.kaggle.com/competitions/titanic).')
 st.header('Training dataset visualization')
 
-df_train = pd.read_csv(r'C:\Users\ferna\Desktop\Python_files\Arquivos de dados\titanic_train.csv')
-df_test = pd.read_csv(r'C:\Users\ferna\Desktop\Python_files\Arquivos de dados\titanic_test.csv')
+df_train = pd.read_csv(r'C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de '
+                       r'python\my_portfolio\Streamlit_files\titanic_train.csv')
+df_test = pd.read_csv(r'C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de '
+                      r'python\my_portfolio\Streamlit_files\titanic_test.csv')
 
 df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
 
@@ -413,7 +421,7 @@ class Pipelines:
     @staticmethod
     def classifiers_default(xx, yy):
         ml_models = {'RandomForest': RandomForestClassifier(), 'SVM': svm.SVC(),
-                     'Logistic Regression': LogisticRegression(),
+                     'Logistic Regression': LogisticRegression(max_iter=1000),
                      'Gradient Boosting': GradientBoostingClassifier(), 'Decision Tree': tree.DecisionTreeClassifier()}
 
         ml_selected = st.multiselect('Select model to fit data:', list(ml_models.keys()), list(ml_models.keys()))
@@ -477,8 +485,3 @@ if want_hyper:
     clf2 = GradientBoostingClassifier().set_params(**best_scr)
     scors = cross_val_score(clf2, X, y, cv=5)
     st.write('The score is: {:.2%}'.format(scors.mean()))
-
-
-
-
-
