@@ -1,11 +1,13 @@
 [theme]
 
-primaryColor = "#694FF"
+primaryColor="#4fbff7"
+backgroundColor="#fefeff"
+secondaryBackgroundColor="#dfdffd"
+textColor="#010c0c"
+font="serif"
 
-backgroundColor = "#00172B"
+[global]
 
-secondaryBackgroundColor = "#0083B8"
+dataFrameSerialization = "legacy"
 
-textColor = "#FFF"
 
-font = "monospace"
