@@ -8,6 +8,6 @@ font="serif"
 
 [global]
 
-dataFrameSerialization = "legacy"
+dataFrameSerialization = "arrow"
 
 

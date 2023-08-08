@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-# import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
@@ -83,8 +82,7 @@ def load_data():
 # ----------------------------------------------------------------------------------------------------------------------
 # Page title, datasets download, and defining types of variables:
 
-st.set_page_config(page_title='The Titanic dataset', layout='wide')
-
+st.set_page_config(page_title='The Titanic dataset',page_icon=":shark:", layout='wide')
 
 st.title('The Titanic dataset', anchor='titanic_train',
          help='This dataset is available on [kaggle](https://www.kaggle.com/competitions/titanic).')
@@ -157,86 +155,101 @@ st.divider()
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Overview of the dataset
-st.subheader('Overview')
 
-col1, col2 = st.columns([1, 1.5], gap="small")
-with col1:
-    st.write('**Dataset statistics**')
 
-    st.markdown("- Number of observations: {}".format(df_train.shape[0]))
-    st.markdown("- Number of variables: {}".format(df_train.shape[1]))
-    st.markdown("- Number of missing cells: {}".format(df_train.isnull().sum().sum()))
-    st.markdown("- Missing cells (%): {:.2%}".format(df_train.isnull().sum().sum()/df_train.size))
-    st.markdown("- Number of duplicated rows: {}".format(df_train.drop(columns=['PassengerId']).duplicated().sum()))
+@st.cache_data
+def show_overview():
 
-with col2:
-    st.write('**Type of variables**')
+    st.subheader('Overview')
 
-    df_type = pd.concat([pd.Series(df_num.columns), pd.Series(df_cat.columns), pd.Series(df_tex.columns)], axis=1)
-    df_type = df_type.set_axis(['Numerical variables', 'Categorical variables', 'Text variables'], axis='columns')
-    st.dataframe(df_type, hide_index=True, use_container_width=True)
+    col1, col2 = st.columns([1, 1.5], gap="small")
+    with col1:
+        st.write('**Dataset statistics**')
+
+        st.markdown("- Number of observations: {}".format(df_train.shape[0]))
+        st.markdown("- Number of variables: {}".format(df_train.shape[1]))
+        st.markdown("- Number of missing cells: {}".format(df_train.isnull().sum().sum()))
+        st.markdown("- Missing cells (%): {:.2%}".format(df_train.isnull().sum().sum()/df_train.size))
+        st.markdown("- Number of duplicated rows: {}".format(df_train.drop(columns=['PassengerId']).duplicated().sum()))
+
+    with col2:
+        st.write('**Type of variables**')
+
+        df_type = pd.concat([pd.Series(df_num.columns), pd.Series(df_cat.columns), pd.Series(df_tex.columns)], axis=1)
+        df_type = df_type.set_axis(['Numerical variables', 'Categorical variables', 'Text variables'], axis='columns')
+        st.dataframe(df_type, hide_index=True, use_container_width=True)
+
+
+show_overview()
 
 st.divider()
 # ---------------------------------------------------------------------------------------------------------------------
 
-st.subheader('Variables information')
-name_num = st.tabs(list(df_num.columns))
+# Variable information
 
-for idx, tabb in enumerate(name_num):
-    with tabb:
-        coluna = df_num.columns[idx]
 
-        col1, col2, col3 = st.columns([1.3, 1, 2.5], gap="medium")
+@st.cache_data
+def show_var_info():
+    st.subheader('Variables information')
+    name_num = st.tabs(list(df_num.columns))
 
-        with col1:
-            st.write('**Basic information**')
+    for idx, tabb in enumerate(name_num):
+        with tabb:
+            coluna = df_num.columns[idx]
 
-            df_num1 = pd.DataFrame(data=[df_num[coluna].nunique(), df_num[coluna].isnull().sum()],
-                                   index=['# of distinct values', '# of missing cells'], columns=[' '])
+            col1, col2, col3 = st.columns([1.3, 1, 2.5], gap="medium")
 
-            df_num2 = pd.DataFrame(list(df_num[coluna].describe()), index=['# of non-null cells', 'Mean value',
-                                                                           'Std deviation', 'Minimum', '1st quartile',
-                                                                           'Median', '3rd quartile', 'Maximum'],
-                                   columns=[' '])
-            df_stat = pd.concat([df_num1, df_num2], axis=0)
-            st.dataframe(df_stat, use_container_width=True)
+            with col1:
+                st.write('**Basic information**')
 
-        with col2:
-            st.write('**Most frequent values**')
-            df_col4 = pd.DataFrame(df_num[coluna].value_counts())
-            df_col4.reset_index(inplace=True)
-            st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
+                df_n1 = pd.DataFrame(data=[df_num[coluna].nunique(), df_num[coluna].isnull().sum()],
+                                     index=['# of distinct values', '# of missing cells'], columns=[' '])
 
-        with col3:
-            show_hist(df_num, coluna)
+                df_n2 = pd.DataFrame(list(df_num[coluna].describe()), index=['# of non-null cells', 'Mean value', 'Std '
+                                                                             'deviation', 'Minimum', '1st quartile',
+                                                                             'Median', '3rd quartile', 'Maximum'],
+                                     columns=[' '])
+                df_stat = pd.concat([df_n1, df_n2], axis=0)
+                st.dataframe(df_stat, use_container_width=True)
 
-name_cat = st.tabs(list(df_cat.columns))
+            with col2:
+                st.write('**Most frequent values**')
+                df_col4 = pd.DataFrame(df_num[coluna].value_counts())
+                df_col4.reset_index(inplace=True)
+                st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
 
-for idx, tabb in enumerate(name_cat):
-    with tabb:
-        coluna = df_cat.columns[idx]
-        n_unique = df_cat[coluna].nunique()
-        n_null = df_cat[coluna].isnull().sum()
+            with col3:
+                show_hist(df_num, coluna)
 
-        col1, col2, col3 = st.columns([1.2, 1, 2], gap="medium")
+    name_cat = st.tabs(list(df_cat.columns))
 
-        with col1:
-            st.write('**Basic information**')
-            df_col3 = pd.DataFrame(data=[n_unique, n_null],
-                                   index=['Number of distinct values', 'Number of missing cells'], columns=[' '])
-            st.dataframe(df_col3, use_container_width=True)
+    for idx, tabb in enumerate(name_cat):
+        with tabb:
+            coluna = df_cat.columns[idx]
+            n_unique = df_cat[coluna].nunique()
+            n_null = df_cat[coluna].isnull().sum()
 
-        with col2:
-            st.write('**Most frequent values**')
-            df_col4 = pd.DataFrame(df_cat[coluna].value_counts())
-            df_col4.reset_index(inplace=True)
-            st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
+            col1, col2, col3 = st.columns([1.2, 1, 2], gap="medium")
 
-        with col3:
-            show_hist(df_cat, coluna)
+            with col1:
+                st.write('**Basic information**')
+                df_col3 = pd.DataFrame(data=[n_unique, n_null],
+                                       index=['Number of distinct values', 'Number of missing cells'], columns=[' '])
+                st.dataframe(df_col3, use_container_width=True)
+
+            with col2:
+                st.write('**Most frequent values**')
+                df_col4 = pd.DataFrame(df_cat[coluna].value_counts())
+                df_col4.reset_index(inplace=True)
+                st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
+
+            with col3:
+                show_hist(df_cat, coluna)
+
+
+show_var_info()
 
 st.divider()
-
 # ----------------------------------------------------------------------------------------------------------------------
 
 st.subheader('Variables interaction')
@@ -439,14 +452,19 @@ class Pipelines:
                      'Logistic Regression': LogisticRegression(max_iter=1000),
                      'Gradient Boosting': GradientBoostingClassifier(), 'Decision Tree': tree.DecisionTreeClassifier()}
 
-        ml_selected = st.multiselect('Select model to fit data:', list(ml_models.keys()), list(ml_models.keys()))
+        col1, col2 = st.columns([2, 2], gap='large')
+        with col1:
+            ml_selected = st.multiselect('Select model to fit data:', list(ml_models.keys()), list(ml_models.keys()))
+            use_clf = st.button('Train models')
 
-        for model in ml_selected:
-            clf = ml_models[model]
+        with col2:
+            if use_clf:
+                for model in ml_selected:
+                    clf = ml_models[model]
 
-            scores = cross_val_score(clf, xx, yy, cv=5)
-            scr = scores.mean()
-            st.markdown('- The score for {} is {:.2%}'.format(model, scr))
+                    scores = cross_val_score(clf, xx, yy, cv=5)
+                    scr = scores.mean()
+                    st.markdown('- The score for {} is {:.2%}'.format(model, scr))
 
 
 pipes = Pipelines()
