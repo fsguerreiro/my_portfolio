@@ -75,22 +75,20 @@ def make_filter():
 st.set_page_config(page_title='The Titanic dataset', layout='wide')
 
 
-
-
-
-
 st.title('The Titanic dataset', anchor='titanic_train',
          help='This dataset is available on [kaggle](https://www.kaggle.com/competitions/titanic).')
 st.header('Training dataset visualization')
 
 
 # df_train = pd.read_csv(r'C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de '
-                       r'python\my_portfolio\Streamlit_files\titanic_train.csv')
+#                       r'python\my_portfolio\Streamlit_files\titanic_train.csv')
 # df_test = pd.read_csv(r'C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de '
-                      r'python\my_portfolio\Streamlit_files\titanic_test.csv')
+#                      r'python\my_portfolio\Streamlit_files\titanic_test.csv')
 
-df_train = pd.read_csv(r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_train.csv')
-df_test = pd.read_csv(r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_test.csv')
+df_train = pd.read_csv(
+    r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_train.csv')
+df_test = pd.read_csv(
+    r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_test.csv')
 
 
 df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
