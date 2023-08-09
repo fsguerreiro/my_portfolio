@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy
 import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
@@ -24,7 +23,7 @@ def show_hist(dataframe, column):
     st.plotly_chart(figg, theme=None, use_container_width=True)
 
 
-# @st.cache_data
+@st.cache_data
 def show_heatmap(dataframe):
     df_heatmap = dataframe.copy()
     df_heatmap.Survived = df_heatmap.Survived.astype(int)
@@ -82,17 +81,34 @@ def load_data():
 # ----------------------------------------------------------------------------------------------------------------------
 # Page title, datasets download, and defining types of variables:
 
-st.set_page_config(page_title='The Titanic dataset',page_icon=":shark:", layout='wide')
+st.set_page_config(page_title='Titanic challenge', page_icon=":ship:", layout='wide')
 
-st.title('The Titanic dataset', anchor='titanic_train',
-         help='This dataset is available on [kaggle](https://www.kaggle.com/competitions/titanic).')
-st.header('Training dataset visualization')
+st.title(':passenger_ship: Titanic - Machine Learning from Disaster (kaggle competition)', anchor='titanic_train')
+
+st.write('''
+The sinking of the Titanic is one of the most infamous shipwrecks in history. On April 15, 1912, 
+during her maiden voyage, the widely considered “unsinkable” RMS Titanic sank after colliding with an iceberg. 
+Unfortunately, there weren’t enough lifeboats for everyone onboard, resulting in the death of 1502 out of 2224 
+passengers and crew.
+
+While there was some element of luck involved in surviving, it seems some groups of people were more likely to 
+survive than others. The goal of this competition is to build a predictive model that answers the question: “what 
+sorts of people were more likely to survive?” using passenger data (ie name, age, gender, socio-economic class, etc). 
+''')
+
+st.header('Training dataset visualization', help='Both datasets are available for download on [kaggle]('
+                                                 'https://www.kaggle.com/competitions/titanic).')
+
+st.write('''In this competition, it's granted access to two similar datasets that include passenger information like 
+name, age, gender, socio-economic class, etc. One dataset is titled **train.csv** and the other is titled **test.csv**.
+
+**Train.csv** will contain the details of a subset of the passengers on board (891 to be exact) and importantly, 
+will reveal whether they survived or not, also known as the “ground truth”. The **test.csv** dataset contains similar 
+information but does not disclose the “ground truth” for each passenger. It’s the objective to predict these outcomes.
 
 
-# df_train = pd.read_csv(r'C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de '
-#                       r'python\my_portfolio\Streamlit_files\titanic_train.csv')
-# df_test = pd.read_csv(r'C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de '
-#                      r'python\my_portfolio\Streamlit_files\titanic_test.csv')
+
+''')
 
 
 df_train, df_test = load_data()
@@ -111,13 +127,13 @@ df_tex = df_train.select_dtypes('object')
 # Filter data function is in the sidebar (left-hand side of the page): results are shown in the tab 'filtered data'
 
 with st.sidebar:
-    st.subheader('Filter data')
+    st.subheader('Filter train dataset')
     df_filtered = make_filter()
 
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Visualize the titanic dataset:
-st.write('**Filtered data**')
+st.write('**Filtered train dataset**')
 st.dataframe(df_filtered, hide_index=True, use_container_width=True)
 
 # Expanded tab to show explanation of the variables
@@ -433,7 +449,7 @@ class Pipelines:
                      'Gradient Boosting': GradientBoostingClassifier(), 'Decision Tree': tree.DecisionTreeClassifier()}
 
         use_clf = st.checkbox('Run ML models to train and test by default parameters')
-        
+
         if use_clf:
             ml_selected = st.multiselect('Select model to fit data:', list(ml_models.keys()), list(ml_models.keys()))
             for model in ml_selected:
@@ -449,7 +465,7 @@ class Pipelines:
             'params': {"n_estimators": list(range(100, 500, 50)), "learning_rate": [0, 0.01, 0.05, 0.1, 0.5, 1],
                        "max_depth": [3, 4, 5, 6, 7], 'loss': ['log_loss', 'exponential']}
                                        }
-        }
+                 }
 
         want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
         if want_hyper:
@@ -508,9 +524,3 @@ with col_default:
 
 with col_hyper:
     pipes.hypertuning_models(X_train, y)
-
-
-
-
-
-
