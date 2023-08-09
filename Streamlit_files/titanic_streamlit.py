@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy
 import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
@@ -23,16 +24,16 @@ def show_hist(dataframe, column):
     st.plotly_chart(figg, theme=None, use_container_width=True)
 
 
-@st.cache_data
+# @st.cache_data
 def show_heatmap(dataframe):
     df_heatmap = dataframe.copy()
-    df_heatmap.Sex.replace(['male', 'female'], [0, 1], inplace=True)
-    a = pd.get_dummies(df_heatmap.Embarked, prefix='Embarked')
-    df_heatmap = pd.concat([df_heatmap, a], axis=1)
+    df_heatmap.Survived = df_heatmap.Survived.astype(int)
+    a = pd.get_dummies(df_cat.drop(columns='Survived', axis=1), dtype=int)
+    df_heatmap2 = pd.concat([df_heatmap, a], axis=1)
+    fiig, ax = plt.subplots(figsize=(12, 7))
+    sns.heatmap(df_heatmap2.corr(numeric_only=True).round(3), annot=True, cmap='coolwarm', linewidth=.5, cbar=False)
 
-    fiig, ax = plt.subplots(figsize=(9, 3))
-    sns.heatmap(df_heatmap.corr(numeric_only=True), annot=True, cmap='coolwarm', linewidth=.5, cbar=False)
-    ax.tick_params(axis='both', labelsize=9, grid_color='b')
+    ax.tick_params(axis='both', labelsize=12, grid_color='b')
     st.pyplot(fiig)
 
 
@@ -40,9 +41,8 @@ def make_filter():
 
     options = st.multiselect(
         'Select which variables to filter by:',
-        list(df_cat.columns) + list(df_num.columns),
-        list(df_cat.columns) + list(df_num.columns))
-    st.caption('*If no variable is selected, the method will return all rows with at least a missing cell')
+        list(df_train.columns))
+    st.caption('*If no variable is selected, the method will return all rows of the dataset')
 
     df_filter = df_train.copy()
     df_filter.loc[~df_filter.Age.isnull(), 'Age'] = df_filter.loc[~df_filter.Age.isnull(), 'Age'].astype('int')
@@ -54,21 +54,21 @@ def make_filter():
                 df_filter = df_filter.loc[(df_filter[opt] == filt)]
 
             elif df_filter[opt].dtype in ['int64', 'float64']:
-                filt = st.slider('Select {}:'.format(opt), int(df_train[opt].min()), int(df_train[opt].max()),
+                filt = st.slider('Select {}:'.format(opt), int(df_train[opt].min()), int(df_train[opt].max())+1,
                                  (int(df_train[opt].min()), int(df_train[opt].mean())+2), 1)
                 df_filter = df_filter.loc[(df_filter[opt] >= filt[0]) & (df_filter[opt] <= filt[1])]
 
-        apply_filter = st.button('Click to apply filter')
-        if apply_filter:
-            st.write("{} result(s) found. Click the 'Filtered data' tab to see the results.".format(df_filter.shape[0]))
+            else:
+                filt = st.text_input('Input {}'.format(opt), key='texto_'+opt)
+                filt = str(filt)
+                df_filter = df_filter.loc[df_filter[opt].str.contains(filt, case=False, na=False)]
+
+        st.write("{} result(s) found.".format(df_filter.shape[0]))
 
     else:
-        df_filter = df_filter[df_filter.isnull().any(axis=1)]
-        apply_filter = st.button('Click to apply filter')
-        if apply_filter:
-            st.write("{} result(s) found. Click the 'Filtered data' tab to see the results.".format(df_filter.shape[0]))
+        st.write("{} result(s) found.".format(df_filter.shape[0]))
 
-    return df_filter, apply_filter
+    return df_filter
 
 
 @st.cache_data
@@ -95,9 +95,7 @@ st.header('Training dataset visualization')
 #                      r'python\my_portfolio\Streamlit_files\titanic_test.csv')
 
 
-data_load_state = st.text('Loading data...')
 df_train, df_test = load_data()
-data_load_state.text("Done! (using st.cache_data)")
 
 
 df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
@@ -114,25 +112,13 @@ df_tex = df_train.select_dtypes('object')
 
 with st.sidebar:
     st.subheader('Filter data')
-    df_filtered, applied_filter = make_filter()
+    df_filtered = make_filter()
 
 # ----------------------------------------------------------------------------------------------------------------------
 
-# Visualize the titanic dataset in 4 tabs: first rows, last rows, full table and filtered data table
-tab_first, tab_last, tab_full, tab_filt = st.tabs(["First rows", "Last rows", "Full training dataset", 'Filtered data'])
-
-with tab_first:
-    st.dataframe(df_train.head(10), hide_index=True)
-
-with tab_last:
-    st.dataframe(df_train.tail(10), hide_index=True)
-
-with tab_full:
-    st.dataframe(df_train, hide_index=True)
-
-with tab_filt:
-    if applied_filter:
-        st.dataframe(df_filtered, hide_index=True, use_container_width=True)
+# Visualize the titanic dataset:
+st.write('**Filtered data**')
+st.dataframe(df_filtered, hide_index=True, use_container_width=True)
 
 # Expanded tab to show explanation of the variables
 with st.expander("See variable notes"):
@@ -157,7 +143,7 @@ st.divider()
 # Overview of the dataset
 
 
-@st.cache_data
+@st.cache_data(experimental_allow_widgets=True)
 def show_overview():
 
     st.subheader('Overview')
@@ -188,7 +174,7 @@ st.divider()
 # Variable information
 
 
-@st.cache_data
+@st.cache_data(experimental_allow_widgets=True)
 def show_var_info():
     st.subheader('Variables information')
     name_num = st.tabs(list(df_num.columns))
@@ -197,9 +183,9 @@ def show_var_info():
         with tabb:
             coluna = df_num.columns[idx]
 
-            col1, col2, col3 = st.columns([1.3, 1, 2.5], gap="medium")
+            col1a, col2a, col3a = st.columns([1.3, 1, 2.5], gap="medium")
 
-            with col1:
+            with col1a:
                 st.write('**Basic information**')
 
                 df_n1 = pd.DataFrame(data=[df_num[coluna].nunique(), df_num[coluna].isnull().sum()],
@@ -212,13 +198,13 @@ def show_var_info():
                 df_stat = pd.concat([df_n1, df_n2], axis=0)
                 st.dataframe(df_stat, use_container_width=True)
 
-            with col2:
+            with col2a:
                 st.write('**Most frequent values**')
                 df_col4 = pd.DataFrame(df_num[coluna].value_counts())
                 df_col4.reset_index(inplace=True)
                 st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
 
-            with col3:
+            with col3a:
                 show_hist(df_num, coluna)
 
     name_cat = st.tabs(list(df_cat.columns))
@@ -229,21 +215,21 @@ def show_var_info():
             n_unique = df_cat[coluna].nunique()
             n_null = df_cat[coluna].isnull().sum()
 
-            col1, col2, col3 = st.columns([1.2, 1, 2], gap="medium")
+            col1b, col2b, col3b = st.columns([1.2, 1, 2], gap="medium")
 
-            with col1:
+            with col1b:
                 st.write('**Basic information**')
                 df_col3 = pd.DataFrame(data=[n_unique, n_null],
                                        index=['Number of distinct values', 'Number of missing cells'], columns=[' '])
                 st.dataframe(df_col3, use_container_width=True)
 
-            with col2:
+            with col2b:
                 st.write('**Most frequent values**')
                 df_col4 = pd.DataFrame(df_cat[coluna].value_counts())
                 df_col4.reset_index(inplace=True)
                 st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
 
-            with col3:
+            with col3b:
                 show_hist(df_cat, coluna)
 
 
@@ -254,28 +240,20 @@ st.divider()
 
 st.subheader('Variables interaction')
 
-tab1, tab2, tab3 = st.tabs(['Heatmap', 'Grouped by Survived', 'Group 3 variables'])
+tab1, tab2, tab3 = st.tabs(['Heatmap', 'Grouped by Survived', 'Scatterplot'])
 with tab1:
     show_heatmap(df_train)
 
 with tab2:
-    col1, col2 = st.columns([1, 4], gap="small")
+    col1c, col2c = st.columns([1, 4], gap="small")
 
-    with col1:
+    with col1c:
         list_graph = list(df_num.columns) + list(df_cat.columns)
         list_graph.remove('Survived')
         X_axis = st.radio("Choose Y-axis variable", list_graph, key='graphX1')
 
-    with col2:
-        # fig, ax = plt.subplots()
-        # ax.scatter(df_train[X_axis], df_train[Y_axis])
-        # ax.set_xlabel(X_axis, fontsize=13)
-        # ax.set_ylabel(Y_axis, fontsize=13)
-        # ax.grid(True)
-        # st.pyplot(fig)
+    with col2c:
         df_group = df_train.groupby([X_axis, 'Survived'])['Survived'].value_counts().reset_index()
-        # fig = px.scatter(df_train, x=X_axis, y=Y_axis, color='Survived')
-
         df_group.Survived = df_group.Survived.astype(str)
         df_group.Pclass = df_group.Pclass.astype(str) if X_axis == 'Pclass' else ''
         fig = px.histogram(df_group, y=X_axis, x='count', color="Survived", text_auto=True, orientation='h', nbins=20)
@@ -286,24 +264,26 @@ with tab2:
         st.plotly_chart(fig, theme=None, use_container_width=True)
 
 with tab3:
-    col1, col2, col3 = st.columns([1, 1, 3], gap="small")
+    col1d, col2d, col3d = st.columns([1, 1, 3], gap="small")
 
-    with col1:
+    with col1d:
         X_axis = st.radio("Choose X-axis variable", df_train[['Age', 'Sex', 'Pclass', 'SibSp', 'Parch', 'Fare',
                                                               'Embarked']].columns, key='graphX2')
 
-    with col2:
+    with col2d:
         Y_axis = st.radio(
             "Choose Y-axis variable",
             df_train[['Age', 'Sex', 'Pclass', 'SibSp', 'Parch',
                       'Fare', 'Embarked']].columns, key='graphY2')
 
-    # with col3:
-        # fig, ax = plt.subplots()
-        # ax.scatter(df_train[X_axis], df_train[Y_axis])
-        # ax.set_xlabel(X_axis, fontsize=13)
-        # ax.set_ylabel(Y_axis, fontsize=13)
-        # ax.grid(True)
+    with col3d:
+        fig = px.scatter(df_train, x=X_axis, y=Y_axis, symbol='Survived', color='Survived',
+                         color_discrete_sequence=px.colors.qualitative.G10)
+        fig.update_layout(xaxis_title=X_axis, yaxis_title=Y_axis, font={'size': 14, 'color': 'black'},
+                          plot_bgcolor='white', scattermode="group")
+        fig.update_xaxes(mirror=True, ticks='outside', showgrid=True, linecolor='black', gridcolor='lightgrey')
+        fig.update_yaxes(mirror=True, ticks='outside', showgrid=True, linecolor='black', gridcolor='lightgrey')
+        st.plotly_chart(fig, theme=None, use_container_width=True)
 
 st.divider()
 # ======================================================================================================================
@@ -323,9 +303,9 @@ class FeatureEng(BaseEstimator, TransformerMixin):
         want_age_interval = st.checkbox("Add 'AgeInterval' categorical variable as ranges of 'Age'")
         if want_age_interval:
             try:
-                x['AgeInterval'] = pd.qcut(x['Age'], [0, 0.2, 0.4, 0.6, 0.8, 1])
+                x['AgeInterval'] = pd.qcut(x['Age'], [0, 0.2, 0.4, 0.6, 0.8, 1], duplicates='drop')
                 # x.drop(columns=['Age'], inplace=True)
-            except:
+            except TypeError:
                 st.write('Operation not performed!')
 
         want_fare_interval = st.checkbox("Add 'FareInterval' categorical variable as ranges of 'Fare'")
@@ -400,7 +380,7 @@ class FillNA(BaseEstimator, TransformerMixin):
 
                 if strat == 'grouping median':
                     x[c] = x[c].fillna(x.groupby(['Sex', 'Pclass', 'Embarked'])[c].transform('median'))
-                    return x
+                    continue
 
                 if strat == 'constant':
                     value = st.text_input('Input which string/value: ', 'NA', key='texto_' + c)
@@ -427,10 +407,10 @@ class Encoder(BaseEstimator, TransformerMixin):
     @staticmethod
     def transform(self, x):
         st.write('OneHotEncoder has been applied for {}.'.format(
-            list(x.select_dtypes('category').drop(columns=['Survived']))))
-        dum = pd.get_dummies(x.select_dtypes('category').drop(columns=['Survived']), dtype=int)
+            list(x.select_dtypes('category'))))
+        dum = pd.get_dummies(x.select_dtypes('category'), dtype=int)
         x = pd.concat([x, dum], axis=1)
-        x.drop(columns=list(x.select_dtypes('category').drop(columns=['Survived'])), inplace=True)
+        x.drop(columns=list(x.select_dtypes('category')), inplace=True)
 
         return x
 
@@ -452,25 +432,53 @@ class Pipelines:
                      'Logistic Regression': LogisticRegression(max_iter=1000),
                      'Gradient Boosting': GradientBoostingClassifier(), 'Decision Tree': tree.DecisionTreeClassifier()}
 
-        col1, col2 = st.columns([2, 2], gap='large')
-        with col1:
+        use_clf = st.checkbox('Run ML models to train and test by default parameters')
+        
+        if use_clf:
             ml_selected = st.multiselect('Select model to fit data:', list(ml_models.keys()), list(ml_models.keys()))
-            use_clf = st.button('Train models')
+            for model in ml_selected:
+                clf = ml_models[model]
+                scores = cross_val_score(clf, xx, yy, cv=5)
+                scr = scores.mean()
+                st.markdown('- The score for {} is {:.2%}'.format(model, scr))
 
-        with col2:
-            if use_clf:
-                for model in ml_selected:
-                    clf = ml_models[model]
+    @staticmethod
+    def hypertuning_models(x, y):
+        models = {'Gradient Boosting': {
+            'model': GradientBoostingClassifier(),
+            'params': {"n_estimators": list(range(100, 500, 50)), "learning_rate": [0, 0.01, 0.05, 0.1, 0.5, 1],
+                       "max_depth": [3, 4, 5, 6, 7], 'loss': ['log_loss', 'exponential']}
+                                       }
+        }
 
-                    scores = cross_val_score(clf, xx, yy, cv=5)
-                    scr = scores.mean()
-                    st.markdown('- The score for {} is {:.2%}'.format(model, scr))
+        want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
+        if want_hyper:
+            grid_search = RandomizedSearchCV(models['Gradient Boosting']['model'],
+                                             models['Gradient Boosting']['params'], cv=5,
+                                             n_iter=10, scoring='accuracy', return_train_score=False)
+
+            grid_search.fit(x, y)
+            best_scr = grid_search.best_params_
+            st.write(grid_search.best_params_)
+
+            clf2 = GradientBoostingClassifier().set_params(**best_scr)
+            scors = cross_val_score(clf2, x, y, cv=5)
+            st.write('The score is: {:.2%}'.format(scors.mean()))
 
 
 pipes = Pipelines()
-df_ml = pipes.preproc_pipeline(df_train)
-X, y = df_ml.drop(columns=['Survived']), df_ml.Survived
+
+y = df_train.Survived
+# df_train2 = df_train.drop(columns='Survived', axis=1)
+df_full = pd.concat([df_train.drop(columns='Survived', axis=1), df_test], axis=0, ignore_index=True)
+list_category = ['Pclass', 'Embarked', 'Sex']
+df_full[list_category] = df_full[list_category].astype('category')
+
+df_ml = pipes.preproc_pipeline(df_full)
+X = df_ml.copy()
 X_scaler = pipes.scaling(X)
+X_train = X_scaler[0:df_train.shape[0]][:]
+
 
 with st.expander('Click here to see the dataframe ready for training and testing'):
 
@@ -494,27 +502,15 @@ with st.expander('Click here to see the dataframe ready for training and testing
 # X_train, X_test, y_train, y_test = train_test_split(X_scaler, y, test_size=p_split, random_state=n_random,
 #                                                     stratify=df_ml[['Survived', 'Pclass_3', 'Sex_female']])
 
+col_default, col_hyper = st.columns([2, 2], gap='large')
+with col_default:
+    pipes.classifiers_default(X_train, y)
 
-pipes.classifiers_default(X, y)
+with col_hyper:
+    pipes.hypertuning_models(X_train, y)
 
-st.write('**Hypertuning parameters**')
 
-models = {'Gradient Boosting': {
-        'model': GradientBoostingClassifier(),
-        'params': {"n_estimators": list(range(100, 500, 50)), "learning_rate": [0, 0.01, 0.05, 0.1, 0.5, 1],
-          "max_depth": [3, 4, 5, 6, 7], 'loss': ['log_loss', 'exponential']}
-    }
-}
 
-want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
-if want_hyper:
-    grid_search = RandomizedSearchCV(models['Gradient Boosting']['model'], models['Gradient Boosting']['params'], cv=5,
-                                     n_iter=10, scoring='accuracy', return_train_score=False)
 
-    grid_search.fit(X, y)
-    best_scr = grid_search.best_params_
-    st.write(grid_search.best_params_)
 
-    clf2 = GradientBoostingClassifier().set_params(**best_scr)
-    scors = cross_val_score(clf2, X, y, cv=5)
-    st.write('The score is: {:.2%}'.format(scors.mean()))
+
