@@ -9,6 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
+import time
 
 
 # Building functions:
@@ -76,6 +77,7 @@ def load_data():
         r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_train.csv')
     test = pd.read_csv(
         r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_test.csv')
+
     return train, test
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -104,14 +106,19 @@ name, age, gender, socio-economic class, etc. One dataset is titled **train.csv*
 
 **Train.csv** will contain the details of a subset of the passengers on board (891 to be exact) and importantly, 
 will reveal whether they survived or not, also known as the “ground truth”. The **test.csv** dataset contains similar 
-information but does not disclose the “ground truth” for each passenger. It’s the objective to predict these outcomes.
+information but does not disclose the “ground truth” for each passenger. Predicting these outcomes is the objective.
 
-
+To get started, the datasets were loaded from my github account:
 
 ''')
 
 
-df_train, df_test = load_data()
+with st.echo('above'):
+    data_load_state = st.text('Loading data...')
+    df_train, df_test = load_data()
+
+time.sleep(2)
+data_load_state.text("Datasets successfully loaded! (using st.cache_data)")
 
 
 df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
@@ -126,6 +133,10 @@ df_tex = df_train.select_dtypes('object')
 # ----------------------------------------------------------------------------------------------------------------------
 # Filter data function is in the sidebar (left-hand side of the page): results are shown in the tab 'filtered data'
 
+st.write('''
+The filter function can be accessed by the sidebar on the left side of the page. The filtered data is shown below:
+''')
+
 with st.sidebar:
     st.subheader('Filter train dataset')
     df_filtered = make_filter()
@@ -137,6 +148,8 @@ st.write('**Filtered train dataset**')
 st.dataframe(df_filtered, hide_index=True, use_container_width=True)
 
 # Expanded tab to show explanation of the variables
+
+st.write('Here is a brief explanation about the passenger features:')
 with st.expander("See variable notes"):
     definition = ['Passenger identification number in the dataset',
                   'Survival status: 0 if passed away or 1 if survived',
