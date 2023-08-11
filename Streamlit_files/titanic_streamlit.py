@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
 import time
+# from mitosheet.streamlit.v1 import spreadsheet
 
 
 # Building functions:
@@ -27,12 +28,11 @@ def show_hist(dataframe, column):
 @st.cache_data
 def show_heatmap(dataframe):
     df_heatmap = dataframe.copy()
-    df_heatmap.Survived = df_heatmap.Survived.astype(int)
-    a = pd.get_dummies(df_cat.drop(columns='Survived', axis=1), dtype=int)
-    df_heatmap2 = pd.concat([df_heatmap, a], axis=1)
+    df_heatmap[y_name] = df_heatmap[y_name].astype(int)
+    df_heatmap2 = df_heatmap.drop(columns=list(df_heatmap.select_dtypes('object')), axis=1)
+    dum = pd.get_dummies(df_heatmap2, dtype=int)
     fiig, ax = plt.subplots(figsize=(12, 7))
-    sns.heatmap(df_heatmap2.corr(numeric_only=True).round(3), annot=True, cmap='coolwarm', linewidth=.5, cbar=False)
-
+    sns.heatmap(dum.corr(numeric_only=True).round(3), annot=True, cmap='coolwarm', linewidth=.5, cbar=False)
     ax.tick_params(axis='both', labelsize=12, grid_color='b')
     st.pyplot(fiig)
 
@@ -53,15 +53,16 @@ def make_filter():
                 filt = st.radio('Select {}:'.format(opt), tuple(df_filter[opt].unique()))
                 df_filter = df_filter.loc[(df_filter[opt] == filt)]
 
-            elif df_filter[opt].dtype in ['int64', 'float64']:
-                filt = st.slider('Select {}:'.format(opt), int(df_train[opt].min()), int(df_train[opt].max())+1,
-                                 (int(df_train[opt].min()), int(df_train[opt].mean())+2), 1)
-                df_filter = df_filter.loc[(df_filter[opt] >= filt[0]) & (df_filter[opt] <= filt[1])]
+            elif pd.api.types.is_any_real_numeric_dtype(df_filter[opt]):
+                ft = df_filter[opt]
+                step = (int(ft.max())+1 - int(ft.min()))/100
+                filt = st.slider('Select {}:'.format(opt), int(ft.min()), int(ft.max())+1,
+                                 (int(ft.min()), int(ft.mean())+2), step)
+                df_filter = df_filter[ft.between(filt[0], filt[1])]
 
             else:
                 filt = st.text_input('Input {}'.format(opt), key='texto_'+opt)
-                filt = str(filt)
-                df_filter = df_filter.loc[df_filter[opt].str.contains(filt, case=False, na=False)]
+                df_filter = df_filter.loc[df_filter[opt].str.contains(str(filt), case=False, na=False)]
 
         st.write("{} result(s) found.".format(df_filter.shape[0]))
 
@@ -117,18 +118,28 @@ with st.echo('above'):
     data_load_state = st.text('Loading data...')
     df_train, df_test = load_data()
 
-time.sleep(2)
+time.sleep(1)
 data_load_state.text("Datasets successfully loaded! (using st.cache_data)")
 
 
 df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
 
+for col in df_train.columns:
+    if pd.api.types.is_numeric_dtype(df_train[col]) and df_train[col].nunique() <= 5:
+        df_train[col] = df_train[col].astype('category')
 
-list_category = ['Pclass', 'Survived', 'Embarked', 'Sex']
-df_train[list_category] = df_train[list_category].astype('category')
-df_num = df_train.select_dtypes('number')
-df_cat = df_train.select_dtypes('category')
-df_tex = df_train.select_dtypes('object')
+    if pd.api.types.is_object_dtype(df_train[col]) and df_train[col].nunique() <= 5:
+        df_train[col] = df_train[col].astype('category')
+
+y_name = 'Survived'
+y_var = df_train[y_name]
+
+# list_category = ['Pclass', 'Survived', 'Embarked', 'Sex']
+# df_train[list_category] = df_train[list_category].astype('category')
+# df_num = df_train.select_dtypes('number')
+# df_cat = df_train.select_dtypes('category')
+# df_tex = df_train.select_dtypes('object')
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Filter data function is in the sidebar (left-hand side of the page): results are shown in the tab 'filtered data'
@@ -190,7 +201,9 @@ def show_overview():
     with col2:
         st.write('**Type of variables**')
 
-        df_type = pd.concat([pd.Series(df_num.columns), pd.Series(df_cat.columns), pd.Series(df_tex.columns)], axis=1)
+        df_type = pd.concat([pd.Series(df_train.select_dtypes('number').columns),
+                             pd.Series(df_train.select_dtypes('category').columns),
+                             pd.Series(df_train.select_dtypes('object').columns)], axis=1)
         df_type = df_type.set_axis(['Numerical variables', 'Categorical variables', 'Text variables'], axis='columns')
         st.dataframe(df_type, hide_index=True, use_container_width=True)
 
@@ -203,46 +216,46 @@ st.divider()
 # Variable information
 
 
-@st.cache_data(experimental_allow_widgets=True)
 def show_var_info():
     st.subheader('Variables information')
-    name_num = st.tabs(list(df_num.columns))
+    name_num = st.tabs(list(df_train.select_dtypes('number').columns))
 
     for idx, tabb in enumerate(name_num):
         with tabb:
-            coluna = df_num.columns[idx]
+            coluna = df_train.select_dtypes('number').columns[idx]
 
             col1a, col2a, col3a = st.columns([1.3, 1, 2.5], gap="medium")
 
             with col1a:
                 st.write('**Basic information**')
 
-                df_n1 = pd.DataFrame(data=[df_num[coluna].nunique(), df_num[coluna].isnull().sum()],
+                df_n1 = pd.DataFrame(data=[df_train.select_dtypes('number')[coluna].nunique(),
+                                           df_train.select_dtypes('number')[coluna].isnull().sum()],
                                      index=['# of distinct values', '# of missing cells'], columns=[' '])
 
-                df_n2 = pd.DataFrame(list(df_num[coluna].describe()), index=['# of non-null cells', 'Mean value', 'Std '
-                                                                             'deviation', 'Minimum', '1st quartile',
-                                                                             'Median', '3rd quartile', 'Maximum'],
+                df_n2 = pd.DataFrame(list(df_train.select_dtypes('number')[coluna].describe()),
+                                     index=['# of non-null cells', 'Mean value', 'Std deviation', 'Minimum',
+                                            '1st quartile', 'Median', '3rd quartile', 'Maximum'],
                                      columns=[' '])
                 df_stat = pd.concat([df_n1, df_n2], axis=0)
                 st.dataframe(df_stat, use_container_width=True)
 
             with col2a:
                 st.write('**Most frequent values**')
-                df_col4 = pd.DataFrame(df_num[coluna].value_counts())
+                df_col4 = pd.DataFrame(df_train.select_dtypes('number')[coluna].value_counts())
                 df_col4.reset_index(inplace=True)
                 st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
 
             with col3a:
-                show_hist(df_num, coluna)
+                show_hist(df_train.select_dtypes('number'), coluna)
 
-    name_cat = st.tabs(list(df_cat.columns))
+    name_cat = st.tabs(list(df_train.select_dtypes('category').columns))
 
     for idx, tabb in enumerate(name_cat):
         with tabb:
-            coluna = df_cat.columns[idx]
-            n_unique = df_cat[coluna].nunique()
-            n_null = df_cat[coluna].isnull().sum()
+            coluna = df_train.select_dtypes('category').columns[idx]
+            n_unique = df_train.select_dtypes('category')[coluna].nunique()
+            n_null = df_train.select_dtypes('category')[coluna].isnull().sum()
 
             col1b, col2b, col3b = st.columns([1.2, 1, 2], gap="medium")
 
@@ -254,12 +267,12 @@ def show_var_info():
 
             with col2b:
                 st.write('**Most frequent values**')
-                df_col4 = pd.DataFrame(df_cat[coluna].value_counts())
+                df_col4 = pd.DataFrame(df_train.select_dtypes('category')[coluna].value_counts())
                 df_col4.reset_index(inplace=True)
                 st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
 
             with col3b:
-                show_hist(df_cat, coluna)
+                show_hist(df_train.select_dtypes('category'), coluna)
 
 
 show_var_info()
@@ -269,15 +282,15 @@ st.divider()
 
 st.subheader('Variables interaction')
 
-tab1, tab2, tab3 = st.tabs(['Heatmap', 'Grouped by Survived', 'Scatterplot'])
+tab1, tab2, tab3, tab4 = st.tabs(['Heatmap', 'Scatterplot', 'Grouped by count', 'Grouped by Survived'])
 with tab1:
     show_heatmap(df_train)
 
-with tab2:
+with tab4:
     col1c, col2c = st.columns([1, 4], gap="small")
 
     with col1c:
-        list_graph = list(df_num.columns) + list(df_cat.columns)
+        list_graph = list(df_train.select_dtypes('number').columns) + list(df_train.select_dtypes('category').columns)
         list_graph.remove('Survived')
         X_axis = st.radio("Choose Y-axis variable", list_graph, key='graphX1')
 
@@ -292,7 +305,7 @@ with tab2:
         fig.update_yaxes(mirror=True, ticks='outside', showline=True, linecolor='black', gridcolor='lightgrey')
         st.plotly_chart(fig, theme=None, use_container_width=True)
 
-with tab3:
+with tab2:
     col1d, col2d, col3d = st.columns([1, 1, 3], gap="small")
 
     with col1d:
@@ -314,6 +327,24 @@ with tab3:
         fig.update_yaxes(mirror=True, ticks='outside', showgrid=True, linecolor='black', gridcolor='lightgrey')
         st.plotly_chart(fig, theme=None, use_container_width=True)
 
+with tab3:
+    col1e, col2e = st.columns([1, 2], gap="large")
+
+    try:
+        with col1e:
+            option1 = st.selectbox('Select 1st variable:', list(df_train.columns))
+            option2 = st.selectbox('Select 2nd variable:', list(df_train.columns) + ['-'])
+            option3 = st.selectbox('Select 3rd variable:', list(df_train.columns) + ['-'])
+            option4 = st.selectbox('Select 4th variable:', list(df_train.columns) + ['-'])
+            option_list = [option1, option2, option3, option4]
+            option_list = [opt for opt in option_list if opt != '-']
+
+        with col2e:
+            st.dataframe(df_train.groupby(option_list).size().reset_index(name='count'),
+                         hide_index=True, use_container_width=True)
+    except ValueError:
+        st.write('Error: it must be different variables.')
+
 st.divider()
 # ======================================================================================================================
 
@@ -322,79 +353,126 @@ st.header('Machine learning application')
 st.subheader('Data preprocessing')
 
 
-class FeatureEng(BaseEstimator, TransformerMixin):
+class DropRow(BaseEstimator, TransformerMixin):
     def fit(self, x):
-        st.write('**Feature Engineering**')
+        st.write(':arrow_forward: **Row dropper**')
         return self
 
     @staticmethod
     def transform(self, x):
+        st.write('Searching for null cells...')
+        feat_na = list(x.columns[x.isnull().any()])
+        for n in feat_na:
+            st.markdown('- The feature {} has {} missing cells'.format(n, x[n].isnull().sum()))
+
+        feat_na2 = feat_na.copy()
+        for n in feat_na:
+            if any(filter(lambda z: z >= df_train.shape[0], list(x[x[n].isnull()].index))):
+                st.write(':x: CANNOT DO! At least one missing cell in {} belongs to the test dataset, which needs to be'
+                         ' submitted in its full size. This observation cannot be dropped from the analysis!'.format(n))
+                feat_na2.remove(n)
+
+        if feat_na2:
+            rows_na = st.multiselect('Select the feature you want to remove NaN row from:',
+                                     feat_na2)
+            x.dropna(axis=0, subset=rows_na, inplace=True)
+            if rows_na:
+                st.write(':heavy_check_mark: Operation successfully done. The dataset has now {} observations.'
+                         .format(x.shape[0]))
+
+        return x
+
+
+class FeatureEng(BaseEstimator, TransformerMixin):
+    def fit(self, x):
+        st.write(':arrow_forward: **Feature Addition**')
+        st.write('Select the feature you would like to create and add them to the whole dataset:')
+        return self
+
+    @staticmethod
+    def transform(self, x):
+
         want_age_interval = st.checkbox("Add 'AgeInterval' categorical variable as ranges of 'Age'")
         if want_age_interval:
             try:
-                x['AgeInterval'] = pd.qcut(x['Age'], [0, 0.2, 0.4, 0.6, 0.8, 1], duplicates='drop')
-                # x.drop(columns=['Age'], inplace=True)
-            except TypeError:
-                st.write('Operation not performed!')
+                x['AgeInterval'] = pd.qcut(df_full['Age'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')
+                st.write(":heavy_check_mark: Operation successfully done. Feature **'AgeInterval'** has been added to"
+                         " the dataset.")
+            except:
+                st.write(':x: Operation not performed. Feature not included!')
 
         want_fare_interval = st.checkbox("Add 'FareInterval' categorical variable as ranges of 'Fare'")
         if want_fare_interval:
             try:
-                x['FareInterval'] = pd.qcut(x['Fare'], [0, 0.25, 0.5, 0.75, 1])
-                # x.drop(columns=['Fare'], inplace=True)
+                x['FareInterval'] = pd.qcut(df_full['Fare'], [0, 0.25, 0.5, 0.75, 1])
+                st.write(":heavy_check_mark: Operation successfully done. Feature **'FareInterval'** has been added to"
+                         " the dataset.")
             except:
-                st.write('Operation not performed!')
+                st.write(':x: Operation not performed. Feature not included!')
 
         want_fare_pp = st.checkbox("Add 'FarePp' numerical variable as the ratio of 'Fare' to the family number")
         if want_fare_pp:
             try:
-                x['FarePp'] = x['Fare'] / (x['SibSp'] + x['Parch'] + 1)
-                # x.drop(columns=['Fare'], inplace=True)
+                x['FarePp'] = df_full['Fare'] / (x['SibSp'] + x['Parch'] + 1)
+                st.write(":heavy_check_mark: Operation successfully done. Feature **'FarePp'** has been added to"
+                         " the dataset.")
             except:
-                st.write('Operation not performed!')
+                st.write(':x: Operation not performed. Feature not included!')
 
         want_family_size = st.checkbox("Add 'FmSize' numerical variable as the sum of 'SibSp' and 'Parch'")
         if want_family_size:
             try:
                 x['FmSize'] = x['SibSp'] + x['Parch']
-                # x.drop(columns=['SibSp', 'Parch'], inplace=True)
+                st.write(":heavy_check_mark: Operation successfully done. Feature **'FmSize'** has been added to"
+                         " the dataset.")
             except:
-                st.write('Operation not performed!')
+                st.write(':x: Operation not performed. Feature not included!')
 
         want_title = st.checkbox("Add 'Title' categorical variable as the title of each passenger")
         if want_title:
             try:
                 x['Title'] = df_train['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1])
                 x['Title'] = x['Title'].astype('category')
+                st.write(":heavy_check_mark: Operation successfully done. Feature **'Title'** has been added to"
+                         " the dataset.")
             except:
-                st.write('Operation not performed!')
+                st.write(':x: Operation not performed. Feature not included!')
 
         want_alone = st.checkbox("Add 'IsAlone' categorical variable as the number of relatives with the passenger")
         if want_alone:
             try:
                 x['IsAlone'] = (x['Parch'] == 0) & (x['SibSp'] == 0)
                 x['IsAlone'] = x['IsAlone'].astype(int).astype('category')
+                st.write(":heavy_check_mark: Operation successfully done. Feature **'IsAlone'** has been added to"
+                         " the dataset.")
             except:
-                st.write('Operation not performed!')
+                st.write(':x: Operation not performed. Feature not included!')
+
+
 
         return x
 
 
 class DropColumn(BaseEstimator, TransformerMixin):
     def fit(self, x):
-        st.write('**Column drop option**')
+        st.write(':arrow_forward: **Feature dropper**')
         return self
 
     @staticmethod
     def transform(self, x):
-        colunas = st.multiselect('Select which variables you want to drop from the dataset:', list(x.columns),
-                                 list(df_tex.columns))
+        st.write('By default, all object features will be dropped from the whole dataset.')
+        dropped_list = list(x.select_dtypes('object'))
+        x.drop(columns=x.select_dtypes('object'), axis=1, inplace=True)
+        colunas = st.multiselect('Are there any other features would you like to drop from the dataset?',
+                                 list(x.select_dtypes(['category', 'number'])))
+        st.write(':heavy_check_mark: Operation successfully done. The features dropped from the dataset were **{}**.'
+                 .format(', '.join(colunas + dropped_list)))
         return x.drop(columns=x[colunas], axis=1)
 
 
 class FillNA(BaseEstimator, TransformerMixin):
     def fit(self, x):
-        st.write('**NaN replacement**')
+        st.write(':arrow_forward: **NaN replacer**')
         return self
 
     @staticmethod
@@ -403,13 +481,12 @@ class FillNA(BaseEstimator, TransformerMixin):
 
         for c in cols_na:
             try:
-                strat = st.radio('What value to replace NaN in _{}_?'.format(c), ('mean', 'median', 'most_frequent',
-                                                                                  'constant', 'grouping median'),
-                                 key='radio_' + c)
+                strat = st.radio(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c),
+                                 ('mean', 'median', 'most_frequent', 'constant'), key='radio_' + c)
 
-                if strat == 'grouping median':
-                    x[c] = x[c].fillna(x.groupby(['Sex', 'Pclass', 'Embarked'])[c].transform('median'))
-                    continue
+                # if strat == 'grouping median':
+                #     x[c] = x[c].fillna(x.groupby(['Sex', 'Pclass', 'Embarked'])[c].transform('median'))
+                #     continue
 
                 if strat == 'constant':
                     value = st.text_input('Input which string/value: ', 'NA', key='texto_' + c)
@@ -421,25 +498,27 @@ class FillNA(BaseEstimator, TransformerMixin):
                 imputer = impute.SimpleImputer(strategy=strat, fill_value=value)
                 dt = imputer.fit_transform(x[[c]])
                 x[c] = pd.DataFrame(dt)
+                st.write(':heavy_check_mark: Operation successfully done. The value replace was **{:.2f}**'
+                         .format(imputer.statistics_[0]))
 
             except ValueError:
-                st.write('This imputer or strategy will not work. Try a different approach!')
+                st.write(':x: This imputer or strategy will not work. Try a different approach!')
 
         return x
 
 
 class Encoder(BaseEstimator, TransformerMixin):
     def fit(self, x):
-        st.write('**Categorical encoding**')
+        st.write(':arrow_forward: **Categorical encoding**')
         return self
 
     @staticmethod
     def transform(self, x):
-        st.write('OneHotEncoder has been applied for {}.'.format(
-            list(x.select_dtypes('category'))))
-        dum = pd.get_dummies(x.select_dtypes('category'), dtype=int)
-        x = pd.concat([x, dum], axis=1)
-        x.drop(columns=list(x.select_dtypes('category')), inplace=True)
+        list_enc = list(x.select_dtypes('category'))
+        st.write('OneHotEncoder method has been applied for features **{}**.'.format(', '.join(list_enc)))
+        dumm = pd.get_dummies(x.select_dtypes('category'), dtype=int)
+        x = pd.concat([x, dumm], axis=1)
+        x.drop(columns=list(x.select_dtypes(['category'])), inplace=True)
 
         return x
 
@@ -448,7 +527,7 @@ class Pipelines:
 
     @staticmethod
     def preproc_pipeline(x):
-        pipe = Pipeline([('drp', DropColumn()), ('imp', FillNA()), ('feng', FeatureEng()), ('enc', Encoder())])
+        pipe = Pipeline([('drp', DropColumn()), ('drr', DropRow()), ('imp', FillNA()), ('feng', FeatureEng()), ('enc', Encoder())])
         return pipe.fit_transform(x)
 
     @staticmethod
@@ -472,6 +551,7 @@ class Pipelines:
                 st.markdown('- The score for {} is {:.2%}'.format(model, scr))
 
     @staticmethod
+    @st.cache_resource
     def hypertuning_models(x, y):
         models = {'Gradient Boosting': {
             'model': GradientBoostingClassifier(),
@@ -480,19 +560,17 @@ class Pipelines:
                                        }
                  }
 
-        want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
-        if want_hyper:
-            grid_search = RandomizedSearchCV(models['Gradient Boosting']['model'],
-                                             models['Gradient Boosting']['params'], cv=5,
-                                             n_iter=10, scoring='accuracy', return_train_score=False)
+        grid_search = RandomizedSearchCV(models['Gradient Boosting']['model'],
+                                         models['Gradient Boosting']['params'], cv=5,
+                                         n_iter=10, scoring='accuracy', return_train_score=False)
 
-            grid_search.fit(x, y)
-            best_scr = grid_search.best_params_
-            st.write(grid_search.best_params_)
+        grid_search.fit(x, y)
+        best_scr = grid_search.best_params_
+        st.write(grid_search.best_params_)
 
-            clf2 = GradientBoostingClassifier().set_params(**best_scr)
-            scors = cross_val_score(clf2, x, y, cv=5)
-            st.write('The score is: {:.2%}'.format(scors.mean()))
+        clf2 = GradientBoostingClassifier().set_params(**best_scr)
+        scors = cross_val_score(clf2, x, y, cv=5)
+        st.write('The score is: {:.2%}'.format(scors.mean()))
 
 
 pipes = Pipelines()
@@ -536,4 +614,12 @@ with col_default:
     pipes.classifiers_default(X_train, y)
 
 with col_hyper:
-    pipes.hypertuning_models(X_train, y)
+    want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
+    if want_hyper:
+        pipes.hypertuning_models(X_train, y)
+
+# spreadsheet(df_train)
+
+
+
+
