@@ -55,7 +55,7 @@ def make_filter():
 
             elif pd.api.types.is_any_real_numeric_dtype(df_filter[opt]):
                 ft = df_filter[opt]
-                step = (int(ft.max())+1 - int(ft.min()))/100
+                step = (int(ft.max())+1 - int(ft.min()))/100 if pd.api.types.is_float_dtype(ft) else 1
                 filt = st.slider('Select {}:'.format(opt), int(ft.min()), int(ft.max())+1,
                                  (int(ft.min()), int(ft.mean())+2), step)
                 df_filter = df_filter[ft.between(filt[0], filt[1])]
@@ -72,6 +72,17 @@ def make_filter():
     return df_filter
 
 
+def set_dtypes(df):
+    for col in df.columns:
+        if pd.api.types.is_numeric_dtype(df[col]) and df[col].nunique() <= 5:
+            df[col] = df[col].astype('category')
+
+        if pd.api.types.is_object_dtype(df[col]) and df[col].nunique() <= 5:
+            df[col] = df[col].astype('category')
+
+    return df
+
+
 @st.cache_data
 def load_data():
     train = pd.read_csv(
@@ -84,7 +95,8 @@ def load_data():
 # ----------------------------------------------------------------------------------------------------------------------
 # Page title, datasets download, and defining types of variables:
 
-st.set_page_config(page_title='Titanic challenge', page_icon=":ship:", layout='wide')
+p_title = 'Titanic challenge'
+st.set_page_config(page_title=p_title, page_icon=":ship:", layout='wide')
 
 st.title(':passenger_ship: Titanic - Machine Learning from Disaster (kaggle competition)', anchor='titanic_train')
 
@@ -110,9 +122,7 @@ will reveal whether they survived or not, also known as the “ground truth”. 
 information but does not disclose the “ground truth” for each passenger. Predicting these outcomes is the objective.
 
 To get started, the datasets were loaded from my github account:
-
 ''')
-
 
 with st.echo('above'):
     data_load_state = st.text('Loading data...')
@@ -121,25 +131,13 @@ with st.echo('above'):
 time.sleep(1)
 data_load_state.text("Datasets successfully loaded! (using st.cache_data)")
 
+# df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
 
-df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
-
-for col in df_train.columns:
-    if pd.api.types.is_numeric_dtype(df_train[col]) and df_train[col].nunique() <= 5:
-        df_train[col] = df_train[col].astype('category')
-
-    if pd.api.types.is_object_dtype(df_train[col]) and df_train[col].nunique() <= 5:
-        df_train[col] = df_train[col].astype('category')
+df_train = set_dtypes(df_train)
+df_test = set_dtypes(df_test)
 
 y_name = 'Survived'
-y_var = df_train[y_name]
-
-# list_category = ['Pclass', 'Survived', 'Embarked', 'Sex']
-# df_train[list_category] = df_train[list_category].astype('category')
-# df_num = df_train.select_dtypes('number')
-# df_cat = df_train.select_dtypes('category')
-# df_tex = df_train.select_dtypes('object')
-
+y = df_train[y_name]
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Filter data function is in the sidebar (left-hand side of the page): results are shown in the tab 'filtered data'
@@ -353,92 +351,131 @@ st.header('Machine learning application')
 st.subheader('Data preprocessing')
 
 
-class DropRow(BaseEstimator, TransformerMixin):
+class DropObj(BaseEstimator, TransformerMixin):
     def fit(self, x):
-        st.write(':arrow_forward: **Row dropper**')
+        st.write(':arrow_forward: **Object Feature dropper**')
         return self
 
     @staticmethod
     def transform(self, x):
-        st.write('Searching for null cells...')
-        feat_na = list(x.columns[x.isnull().any()])
-        for n in feat_na:
-            st.markdown('- The feature {} has {} missing cells'.format(n, x[n].isnull().sum()))
+        st.write('By default, all object features will be dropped from the whole dataset.')
+        dropped_list = list(x.select_dtypes('object'))
+        x.drop(columns=x.select_dtypes('object'), axis=1, inplace=True)
+        st.write(':heavy_check_mark: Operation successfully done. **{}** were dropped'.format(', '.join(dropped_list)))
 
-        feat_na2 = feat_na.copy()
-        for n in feat_na:
-            if any(filter(lambda z: z >= df_train.shape[0], list(x[x[n].isnull()].index))):
-                st.write(':x: CANNOT DO! At least one missing cell in {} belongs to the test dataset, which needs to be'
-                         ' submitted in its full size. This observation cannot be dropped from the analysis!'.format(n))
-                feat_na2.remove(n)
+        return x
 
-        if feat_na2:
-            rows_na = st.multiselect('Select the feature you want to remove NaN row from:',
-                                     feat_na2)
-            x.dropna(axis=0, subset=rows_na, inplace=True)
-            if rows_na:
-                st.write(':heavy_check_mark: Operation successfully done. The dataset has now {} observations.'
-                         .format(x.shape[0]))
+
+class FillNA(BaseEstimator, TransformerMixin):
+    def fit(self, x):
+        st.write(':arrow_forward: **NaN replacer**')
+        return self
+
+    @staticmethod
+    def transform(self, x):
+        cols_na = [col for col in x.columns if any(x[col].isnull())]
+
+        for c in cols_na:
+            try:
+                if pd.api.types.is_numeric_dtype(x[c]):
+                    strat = st.selectbox(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c),
+                                         ('mean', 'median', 'most_frequent', 'constant', 'skip'), key='radio_' + c)
+
+                else:
+                    strat = 'constant'
+                    st.write(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c))
+
+                # if strat == 'grouping median':
+                #     x[c] = x[c].fillna(x.groupby(['Sex', 'Pclass', 'Embarked'])[c].transform('median'))
+                #     continue
+
+                if strat == 'skip':
+                    st.write('Nothing will be done for this feature. It still keeps missing value(s).')
+                    continue
+
+                if strat == 'constant':
+                    value = st.text_input('Input which string/value: ', 'NA', key='texto_' + c)
+                    value = int(value) if pd.api.types.is_numeric_dtype(x[c]) else str(value)
+
+                else:
+                    value = None
+
+                imputer = impute.SimpleImputer(strategy=strat, fill_value=value)
+                dt = imputer.fit_transform(x[[c]])
+                x[c] = pd.DataFrame(dt)
+
+                if pd.api.types.is_numeric_dtype(x[c]):
+                    st.write(':heavy_check_mark: Operation successfully done. The value replace was **{:.2f}**.'
+                             .format(imputer.statistics_[0]))
+
+                if pd.api.types.is_object_dtype(x[c]):
+                    x[c] = x[c].astype('category')
+                    st.write(':heavy_check_mark: Operation successfully done. The value replace was **{}**.'
+                             .format(imputer.statistics_[0]))
+
+            except ValueError:
+                st.write(':x: This imputer or strategy will not work. Try a different approach!')
 
         return x
 
 
 class FeatureEng(BaseEstimator, TransformerMixin):
     def fit(self, x):
-        st.write(':arrow_forward: **Feature Addition**')
+        st.write(':arrow_forward: **New features Addition**')
         st.write('Select the feature you would like to create and add them to the whole dataset:')
         return self
 
     @staticmethod
     def transform(self, x):
 
-        want_age_interval = st.checkbox("Add 'AgeInterval' categorical variable as ranges of 'Age'")
+        want_age_interval = st.checkbox("Add 'AgeInterval' categorical feature: Age data is split into 4 bins")
         if want_age_interval:
             try:
-                x['AgeInterval'] = pd.qcut(df_full['Age'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')
+                x['AgeInterval'] = pd.qcut(x['Age'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')
                 st.write(":heavy_check_mark: Operation successfully done. Feature **'AgeInterval'** has been added to"
                          " the dataset.")
             except:
                 st.write(':x: Operation not performed. Feature not included!')
 
-        want_fare_interval = st.checkbox("Add 'FareInterval' categorical variable as ranges of 'Fare'")
+        want_fare_interval = st.checkbox("Add 'FareInterval' categorical feature: Fare data is split into 4 bins")
         if want_fare_interval:
             try:
-                x['FareInterval'] = pd.qcut(df_full['Fare'], [0, 0.25, 0.5, 0.75, 1])
+                x['FareInterval'] = pd.qcut(x['Fare'], [0, 0.25, 0.5, 0.75, 1])
                 st.write(":heavy_check_mark: Operation successfully done. Feature **'FareInterval'** has been added to"
                          " the dataset.")
             except:
                 st.write(':x: Operation not performed. Feature not included!')
 
-        want_fare_pp = st.checkbox("Add 'FarePp' numerical variable as the ratio of 'Fare' to the family number")
+        want_fare_pp = st.checkbox("Add 'FarePp' numerical feature: ratio of Fare values to the family size")
         if want_fare_pp:
             try:
-                x['FarePp'] = df_full['Fare'] / (x['SibSp'] + x['Parch'] + 1)
+                x['FarePp'] = x['Fare'] / (x['SibSp'] + x['Parch'] + 1)
                 st.write(":heavy_check_mark: Operation successfully done. Feature **'FarePp'** has been added to"
                          " the dataset.")
             except:
                 st.write(':x: Operation not performed. Feature not included!')
 
-        want_family_size = st.checkbox("Add 'FmSize' numerical variable as the sum of 'SibSp' and 'Parch'")
+        want_family_size = st.checkbox("Add 'FmSize' numerical feature: sum of 'SibSp' and 'Parch'")
         if want_family_size:
             try:
-                x['FmSize'] = x['SibSp'] + x['Parch']
+                x['FmSize'] = x['SibSp'] + x['Parch'] + 1
                 st.write(":heavy_check_mark: Operation successfully done. Feature **'FmSize'** has been added to"
                          " the dataset.")
             except:
                 st.write(':x: Operation not performed. Feature not included!')
 
-        want_title = st.checkbox("Add 'Title' categorical variable as the title of each passenger")
+        want_title = st.checkbox("Add 'Title' categorical feature: title of each passenger name")
         if want_title:
             try:
-                x['Title'] = df_train['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1])
+                x['Title'] = X_ref['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1])
                 x['Title'] = x['Title'].astype('category')
                 st.write(":heavy_check_mark: Operation successfully done. Feature **'Title'** has been added to"
                          " the dataset.")
             except:
                 st.write(':x: Operation not performed. Feature not included!')
 
-        want_alone = st.checkbox("Add 'IsAlone' categorical variable as the number of relatives with the passenger")
+        want_alone = st.checkbox("Add 'IsAlone' categorical feature: proxy level to indicate whether the passenger was "
+                                 "travelling alone or not")
         if want_alone:
             try:
                 x['IsAlone'] = (x['Parch'] == 0) & (x['SibSp'] == 0)
@@ -448,7 +485,51 @@ class FeatureEng(BaseEstimator, TransformerMixin):
             except:
                 st.write(':x: Operation not performed. Feature not included!')
 
+        want_cabin = st.checkbox("Add 'HasCabin' categorical feature: proxy level to indicate whether the passenger was"
+                                 " in a cabin")
+        if want_cabin:
+            try:
+                x['HasCabin'] = X_ref['Cabin'].notna()
+                x['HasCabin'] = x['HasCabin'].astype(int).astype('category')
+                st.write(":heavy_check_mark: Operation successfully done. Feature **'HasCabin'** has been added to"
+                         " the dataset.")
+            except:
+                st.write(':x: Operation not performed. Feature not included!')
 
+        return x
+
+
+class DropRow(BaseEstimator, TransformerMixin):
+    def fit(self, x):
+        st.write(':arrow_forward: **Row dropper**')
+        return self
+
+    @staticmethod
+    def transform(self, x):
+        st.write('Searching for null cells...')
+        feat_na = list(x.columns[x.isnull().any()])
+        if feat_na:
+            for n in feat_na:
+                st.markdown('- The feature {} has {} missing cells'.format(n, x[n].isnull().sum()))
+
+            feat_na2 = feat_na.copy()
+            for n in feat_na:
+                if any(filter(lambda z: z >= df_train.shape[0], list(x[x[n].isnull()].index))):
+                    st.write(':x: CANNOT DO! At least one missing cell in {} belongs to the test dataset, which needs '
+                             'to be submitted in its full size. This observation cannot be dropped from the analysis!'
+                             .format(n))
+                    feat_na2.remove(n)
+
+            if feat_na2:
+                rows_na = st.multiselect('Select the feature you want to remove NaN row from:',
+                                         feat_na2)
+                x.dropna(axis=0, subset=rows_na, inplace=True)
+                if rows_na:
+                    st.write(':heavy_check_mark: Operation successfully done. The dataset has now {} observations.'
+                             .format(x.shape[0]))
+
+        else:
+            st.write(':heavy_check_mark: No action needed: there is no longer missing cells in the whole dataset.')
 
         return x
 
@@ -465,45 +546,9 @@ class DropColumn(BaseEstimator, TransformerMixin):
         x.drop(columns=x.select_dtypes('object'), axis=1, inplace=True)
         colunas = st.multiselect('Are there any other features would you like to drop from the dataset?',
                                  list(x.select_dtypes(['category', 'number'])))
-        st.write(':heavy_check_mark: Operation successfully done. The features dropped from the dataset were **{}**.'
-                 .format(', '.join(colunas + dropped_list)))
-        return x.drop(columns=x[colunas], axis=1)
-
-
-class FillNA(BaseEstimator, TransformerMixin):
-    def fit(self, x):
-        st.write(':arrow_forward: **NaN replacer**')
-        return self
-
-    @staticmethod
-    def transform(self, x):
-        cols_na = [col for col in x.columns if any(x[col].isnull())]
-
-        for c in cols_na:
-            try:
-                strat = st.radio(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c),
-                                 ('mean', 'median', 'most_frequent', 'constant'), key='radio_' + c)
-
-                # if strat == 'grouping median':
-                #     x[c] = x[c].fillna(x.groupby(['Sex', 'Pclass', 'Embarked'])[c].transform('median'))
-                #     continue
-
-                if strat == 'constant':
-                    value = st.text_input('Input which string/value: ', 'NA', key='texto_' + c)
-                    value = int(value) if x[c].dtype in ['int64, int32', 'float64'] else str(value)
-
-                else:
-                    value = None
-
-                imputer = impute.SimpleImputer(strategy=strat, fill_value=value)
-                dt = imputer.fit_transform(x[[c]])
-                x[c] = pd.DataFrame(dt)
-                st.write(':heavy_check_mark: Operation successfully done. The value replace was **{:.2f}**'
-                         .format(imputer.statistics_[0]))
-
-            except ValueError:
-                st.write(':x: This imputer or strategy will not work. Try a different approach!')
-
+        x = x.drop(columns=x[colunas], axis=1)
+        st.write(':heavy_check_mark: Operation successfully done. The features in the dataset are **{}**.'
+                 .format(', '.join(x.columns)))
         return x
 
 
@@ -527,8 +572,9 @@ class Pipelines:
 
     @staticmethod
     def preproc_pipeline(x):
-        pipe = Pipeline([('drp', DropColumn()), ('drr', DropRow()), ('imp', FillNA()), ('feng', FeatureEng()), ('enc', Encoder())])
-        return pipe.fit_transform(x)
+        pipe2 = Pipeline([('drpO', DropObj()), ('imp', FillNA()), ('feng', FeatureEng()), ('drr', DropRow()),
+                          ('drp', DropColumn()), ('enc', Encoder())])
+        return pipe2.fit_transform(x)
 
     @staticmethod
     def scaling(x):
@@ -562,7 +608,7 @@ class Pipelines:
 
         grid_search = RandomizedSearchCV(models['Gradient Boosting']['model'],
                                          models['Gradient Boosting']['params'], cv=5,
-                                         n_iter=10, scoring='accuracy', return_train_score=False)
+                                         n_iter=15, scoring='accuracy', n_jobs=-1, return_train_score=False)
 
         grid_search.fit(x, y)
         best_scr = grid_search.best_params_
@@ -573,31 +619,35 @@ class Pipelines:
         st.write('The score is: {:.2%}'.format(scors.mean()))
 
 
-pipes = Pipelines()
+X_train_test = pd.concat([df_train.drop(columns=y_name, axis=1), df_test], axis=0, ignore_index=True)
+X_train_test = set_dtypes(X_train_test)
 
-y = df_train.Survived
-# df_train2 = df_train.drop(columns='Survived', axis=1)
-df_full = pd.concat([df_train.drop(columns='Survived', axis=1), df_test], axis=0, ignore_index=True)
-list_category = ['Pclass', 'Embarked', 'Sex']
-df_full[list_category] = df_full[list_category].astype('category')
+X_ref = X_train_test.copy()
 
-df_ml = pipes.preproc_pipeline(df_full)
-X = df_ml.copy()
-X_scaler = pipes.scaling(X)
-X_train = X_scaler[0:df_train.shape[0]][:]
+main_pipe = Pipelines()
+
+X_pipe = main_pipe.preproc_pipeline(X_train_test)
+col_final = X_pipe.columns
+
+X_tt_scaler = main_pipe.scaling(X_pipe)
+X_train = X_tt_scaler[0:df_train.shape[0]][:]
+X_test = X_tt_scaler[df_train.shape[0]:][:]
+X_train.columns = list(col_final)
 
 
 with st.expander('Click here to see the dataframe ready for training and testing'):
 
     tab_X, tab_y, tab_corr = st.tabs(['X-data', 'y-data', 'Correlation matrix'])
     with tab_X:
-        st.dataframe(X, hide_index=False, use_container_width=True)
+        st.dataframe(X_pipe, hide_index=False, use_container_width=True)
 
     with tab_y:
         st.dataframe(y, hide_index=False, use_container_width=True)
 
     with tab_corr:
-        st.dataframe(df_ml.corr())
+        X_corr = X_pipe.copy()
+        X_corr.insert(0, y_name, y)
+        st.dataframe(X_corr.corr())
 
 # col_sp, col_rnd = st.columns([2, 2], gap='medium')
 # with col_sp:
@@ -609,17 +659,39 @@ with st.expander('Click here to see the dataframe ready for training and testing
 # X_train, X_test, y_train, y_test = train_test_split(X_scaler, y, test_size=p_split, random_state=n_random,
 #                                                     stratify=df_ml[['Survived', 'Pclass_3', 'Sex_female']])
 
+st.divider()
+
 col_default, col_hyper = st.columns([2, 2], gap='large')
 with col_default:
-    pipes.classifiers_default(X_train, y)
+    main_pipe.classifiers_default(X_train, y)
 
 with col_hyper:
     want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
     if want_hyper:
-        pipes.hypertuning_models(X_train, y)
+        main_pipe.hypertuning_models(X_train, y)
 
-# spreadsheet(df_train)
+final_clf = GradientBoostingClassifier(n_estimators=250, max_depth=4, loss="exponential", learning_rate=0.1)
+final_clf.fit(X_train, y)
+y_test = final_clf.predict(X_test)
 
+y_test = pd.DataFrame(y_test, columns=[y_name])
 
+df_submit = pd.concat([df_test['PassengerId'], y_test], axis=1)
 
+csv_submit = df_submit.to_csv(index=False)
 
+st.divider()
+
+# @st.cache_data(experimental_allow_widgets=True)
+def download_file():
+    st.write(':arrow_forward: **Download dataframe into csv file**')
+    filename = st.text_input('Enter file name:', value=p_title + '_file.csv')
+    filename = str(filename)
+    st.caption('*file name must end with .csv')
+    if filename.endswith('.csv'):
+        st.download_button(label="Download csv file", data=csv_submit, file_name=filename, mime='text/csv')
+
+    else:
+        st.write(':x: File cannot be download! The file name must end with .csv')
+
+download_file()
