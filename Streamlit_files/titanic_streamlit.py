@@ -617,7 +617,7 @@ class Pipelines:
         #         scr = scores.mean()
         #         st.markdown('- The score for {} is {:.2%}'.format(model, scr))
         s = setup(data=pd.concat([X_train, y], axis=1), target=y_name, preprocess=False, fold=5, train_size=0.75)
-        best = compare_models(exclude=['lightgbm', 'dummy', 'qda'], verbose=False, fold=5)
+        best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5)
         r = pull()
         r.drop(columns='TT (Sec)', inplace=True)
         st.dataframe(r, hide_index=True, use_container_width=True)
