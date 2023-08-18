@@ -2,3 +2,4 @@ matplotlib
 plotly
 scikit-learn
 seaborn
+pycaret

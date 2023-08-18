@@ -3,14 +3,20 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
-from sklearn import svm, preprocessing, impute, tree
-from sklearn.model_selection import cross_val_score, RandomizedSearchCV
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+import time
+
+from sklearn import preprocessing, impute
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
-import time
+from sklearn.metrics import confusion_matrix
+from pycaret.classification import *
+
+# from sklearn import tree, svm
+# from sklearn.model_selection import cross_val_score, RandomizedSearchCV
+# from sklearn.linear_model import LogisticRegression
+# from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 # from mitosheet.streamlit.v1 import spreadsheet
+# import numpy as np
 
 
 # Building functions:
@@ -72,12 +78,12 @@ def make_filter():
     return df_filter
 
 
-def set_dtypes(df):
+def set_dtypes(df, level):
     for col in df.columns:
-        if pd.api.types.is_numeric_dtype(df[col]) and df[col].nunique() <= 5:
+        if pd.api.types.is_numeric_dtype(df[col]) and df[col].nunique() <= level:
             df[col] = df[col].astype('category')
 
-        if pd.api.types.is_object_dtype(df[col]) and df[col].nunique() <= 5:
+        if pd.api.types.is_object_dtype(df[col]) and df[col].nunique() <= level:
             df[col] = df[col].astype('category')
 
     return df
@@ -133,8 +139,8 @@ data_load_state.text("Datasets successfully loaded! (using st.cache_data)")
 
 # df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
 
-df_train = set_dtypes(df_train)
-df_test = set_dtypes(df_test)
+df_train = set_dtypes(df_train, level=5)
+df_test = set_dtypes(df_test, level=5)
 
 y_name = 'Survived'
 y = df_train[y_name]
@@ -284,25 +290,6 @@ tab1, tab2, tab3, tab4 = st.tabs(['Heatmap', 'Scatterplot', 'Grouped by count', 
 with tab1:
     show_heatmap(df_train)
 
-with tab4:
-    col1c, col2c = st.columns([1, 4], gap="small")
-
-    with col1c:
-        list_graph = list(df_train.select_dtypes('number').columns) + list(df_train.select_dtypes('category').columns)
-        list_graph.remove('Survived')
-        X_axis = st.radio("Choose Y-axis variable", list_graph, key='graphX1')
-
-    with col2c:
-        df_group = df_train.groupby([X_axis, 'Survived'])['Survived'].value_counts().reset_index()
-        df_group.Survived = df_group.Survived.astype(str)
-        df_group.Pclass = df_group.Pclass.astype(str) if X_axis == 'Pclass' else ''
-        fig = px.histogram(df_group, y=X_axis, x='count', color="Survived", text_auto=True, orientation='h', nbins=20)
-        fig.update_layout(xaxis_title='Frequency', yaxis_title=X_axis, font={'size': 14, 'color': 'black'},
-                          template='plotly_dark', plot_bgcolor='white', bargap=0.01)
-        fig.update_xaxes(mirror=True, ticks='outside', showline=True, linecolor='black', gridcolor='lightgrey')
-        fig.update_yaxes(mirror=True, ticks='outside', showline=True, linecolor='black', gridcolor='lightgrey')
-        st.plotly_chart(fig, theme=None, use_container_width=True)
-
 with tab2:
     col1d, col2d, col3d = st.columns([1, 1, 3], gap="small")
 
@@ -343,6 +330,26 @@ with tab3:
     except ValueError:
         st.write('Error: it must be different variables.')
 
+with tab4:
+    col1c, col2c = st.columns([1, 4], gap="small")
+
+    with col1c:
+        list_graph = list(df_train.select_dtypes('number').columns) + list(df_train.select_dtypes('category').columns)
+        list_graph.remove('Survived')
+        X_axis = st.radio("Choose Y-axis variable", list_graph, key='graphX1')
+
+    with col2c:
+        df_group = df_train.groupby([X_axis, 'Survived'])['Survived'].value_counts().reset_index()
+        df_group.Survived = df_group.Survived.astype(str)
+        df_group.Pclass = df_group.Pclass.astype(str) if X_axis == 'Pclass' else ''
+        fig = px.histogram(df_group, y=X_axis, x='count', color="Survived", text_auto=True, orientation='h', nbins=20)
+        fig.update_layout(xaxis_title='Frequency', yaxis_title=X_axis, font={'size': 14, 'color': 'black'},
+                          template='plotly_dark', plot_bgcolor='white', bargap=0.01)
+        fig.update_xaxes(mirror=True, ticks='outside', showline=True, linecolor='black', gridcolor='lightgrey')
+        fig.update_yaxes(mirror=True, ticks='outside', showline=True, linecolor='black', gridcolor='lightgrey')
+        st.plotly_chart(fig, theme=None, use_container_width=True)
+
+st.divider()
 st.divider()
 # ======================================================================================================================
 
@@ -378,19 +385,33 @@ class FillNA(BaseEstimator, TransformerMixin):
         for c in cols_na:
             try:
                 if pd.api.types.is_numeric_dtype(x[c]):
-                    strat = st.selectbox(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c),
-                                         ('mean', 'median', 'most_frequent', 'constant', 'skip'), key='radio_' + c)
+                    strat = st.radio(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c),
+                                     ('mean', 'median', 'most_frequent', 'constant', 'skip', 'drop rows'),
+                                     key='radio_' + c)
+                    st.write('<style>div.row-widget.stRadio > div{flex-direction:row;}</style>', unsafe_allow_html=True)
 
                 else:
-                    strat = 'constant'
-                    st.write(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c))
-
-                # if strat == 'grouping median':
-                #     x[c] = x[c].fillna(x.groupby(['Sex', 'Pclass', 'Embarked'])[c].transform('median'))
-                #     continue
+                    # strat = 'constant'
+                    strat = st.radio(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c),
+                                     ('most_frequent', 'constant', 'skip', 'drop rows'),
+                                     key='radio_' + c)
+                    if strat == 'constant':
+                        st.write(' :black_medium_small_square: What value to replace NaN in _{}_?'.format(c))
 
                 if strat == 'skip':
                     st.write('Nothing will be done for this feature. It still keeps missing value(s).')
+                    continue
+
+                if strat == 'drop rows':
+                    st.write('This feature has {} missing cells.'.format(x[c].isnull().sum()))
+                    if any(filter(lambda z: z >= df_train.shape[0], list(x[x[c].isnull()].index))):
+                        st.write(
+                            ':x: CANNOT DO! At least one missing cell in {} belongs to the test dataset, which needs '
+                            'to be submitted in its full size. The observations cannot be dropped from the analysis!'
+                            .format(c))
+                    else:
+                        st.write(':heavy_check_mark: Operation successfully done: the rows have been dropped.')
+
                     continue
 
                 if strat == 'constant':
@@ -572,7 +593,7 @@ class Pipelines:
 
     @staticmethod
     def preproc_pipeline(x):
-        pipe2 = Pipeline([('drpO', DropObj()), ('imp', FillNA()), ('feng', FeatureEng()), ('drr', DropRow()),
+        pipe2 = Pipeline([('drpO', DropObj()), ('imp', FillNA()), ('feng', FeatureEng()),
                           ('drp', DropColumn()), ('enc', Encoder())])
         return pipe2.fit_transform(x)
 
@@ -581,46 +602,58 @@ class Pipelines:
         return pd.DataFrame(preprocessing.StandardScaler().fit_transform(x))
 
     @staticmethod
-    def classifiers_default(xx, yy):
-        ml_models = {'RandomForest': RandomForestClassifier(), 'SVM': svm.SVC(),
-                     'Logistic Regression': LogisticRegression(max_iter=1000),
-                     'Gradient Boosting': GradientBoostingClassifier(), 'Decision Tree': tree.DecisionTreeClassifier()}
+    def classifiers_default():
+        # ml_models = {'RandomForest': RandomForestClassifier(), 'SVM': svm.SVC(),
+        #              'Logistic Regression': LogisticRegression(max_iter=1000),
+        #             'Gradient Boosting': GradientBoostingClassifier(), 'Decision Tree': tree.DecisionTreeClassifier()}
+        #
+        # use_clf = st.checkbox('Run ML models to train and test by default parameters')
+        #
+        # if use_clf:
+        #     ml_selected = st.multiselect('Select model to fit data:', list(ml_models.keys()), list(ml_models.keys()))
+        #     for model in ml_selected:
+        #         clf = ml_models[model]
+        #         scores = cross_val_score(clf, xx, yy, cv=5)
+        #         scr = scores.mean()
+        #         st.markdown('- The score for {} is {:.2%}'.format(model, scr))
+        s = setup(data=pd.concat([X_train, y], axis=1), target=y_name, preprocess=False, fold=5, train_size=0.75)
+        best = compare_models(exclude=['lightgbm', 'dummy', 'qda'], verbose=False, fold=5)
+        r = pull()
+        r.drop(columns='TT (Sec)', inplace=True)
+        st.dataframe(r, hide_index=True, use_container_width=True)
 
-        use_clf = st.checkbox('Run ML models to train and test by default parameters')
-
-        if use_clf:
-            ml_selected = st.multiselect('Select model to fit data:', list(ml_models.keys()), list(ml_models.keys()))
-            for model in ml_selected:
-                clf = ml_models[model]
-                scores = cross_val_score(clf, xx, yy, cv=5)
-                scr = scores.mean()
-                st.markdown('- The score for {} is {:.2%}'.format(model, scr))
+        return best
 
     @staticmethod
-    @st.cache_resource
-    def hypertuning_models(x, y):
-        models = {'Gradient Boosting': {
-            'model': GradientBoostingClassifier(),
-            'params': {"n_estimators": list(range(100, 500, 50)), "learning_rate": [0, 0.01, 0.05, 0.1, 0.5, 1],
-                       "max_depth": [3, 4, 5, 6, 7], 'loss': ['log_loss', 'exponential']}
-                                       }
-                 }
+    def hypertuning_models(_best):
+        # models = {'Gradient Boosting': {
+        #     'model': GradientBoostingClassifier(),
+        #     'params': {"n_estimators": list(range(100, 500, 50)), "learning_rate": [0, 0.01, 0.05, 0.1, 0.5, 1],
+        #                "max_depth": [3, 4, 5, 6, 7], 'loss': ['log_loss', 'exponential']}
+        #                                }
+        #          }
+        #
+        # grid_search = RandomizedSearchCV(models['Gradient Boosting']['model'],
+        #                                  models['Gradient Boosting']['params'], cv=5,
+        #                                  n_iter=15, scoring='accuracy', n_jobs=-1, return_train_score=False)
+        #
+        # grid_search.fit(x, y)
+        # best_scr = grid_search.best_params_
+        # st.write(grid_search.best_params_)
+        #
+        # clf2 = GradientBoostingClassifier().set_params(**best_scr)
+        # scors = cross_val_score(clf2, x, y, cv=5)
+        # st.write('The score is: {:.2%}'.format(scors.mean()))
+        tuned = tune_model(_best, choose_better=True)
+        r2 = pull()
+        st.dataframe(r2, hide_index=False, use_container_width=True)
+        st.write('The accuracy for the hypertuned model is {}.'.format(r2.loc['Mean', 'Accuracy']))
 
-        grid_search = RandomizedSearchCV(models['Gradient Boosting']['model'],
-                                         models['Gradient Boosting']['params'], cv=5,
-                                         n_iter=15, scoring='accuracy', n_jobs=-1, return_train_score=False)
-
-        grid_search.fit(x, y)
-        best_scr = grid_search.best_params_
-        st.write(grid_search.best_params_)
-
-        clf2 = GradientBoostingClassifier().set_params(**best_scr)
-        scors = cross_val_score(clf2, x, y, cv=5)
-        st.write('The score is: {:.2%}'.format(scors.mean()))
+        return tuned
 
 
 X_train_test = pd.concat([df_train.drop(columns=y_name, axis=1), df_test], axis=0, ignore_index=True)
-X_train_test = set_dtypes(X_train_test)
+X_train_test = set_dtypes(X_train_test, level=5)
 
 X_ref = X_train_test.copy()
 
@@ -632,7 +665,7 @@ col_final = X_pipe.columns
 X_tt_scaler = main_pipe.scaling(X_pipe)
 X_train = X_tt_scaler[0:df_train.shape[0]][:]
 X_test = X_tt_scaler[df_train.shape[0]:][:]
-X_train.columns = list(col_final)
+X_train.columns = X_test.columns = list(col_final)
 
 
 with st.expander('Click here to see the dataframe ready for training and testing'):
@@ -661,28 +694,50 @@ with st.expander('Click here to see the dataframe ready for training and testing
 
 st.divider()
 
-col_default, col_hyper = st.columns([2, 2], gap='large')
-with col_default:
-    main_pipe.classifiers_default(X_train, y)
+st.subheader('Model training')
 
-with col_hyper:
-    want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
-    if want_hyper:
-        main_pipe.hypertuning_models(X_train, y)
+st.write(':arrow_forward: **Training models using default parameters**')
 
-final_clf = GradientBoostingClassifier(n_estimators=250, max_depth=4, loss="exponential", learning_rate=0.1)
-final_clf.fit(X_train, y)
-y_test = final_clf.predict(X_test)
 
-y_test = pd.DataFrame(y_test, columns=[y_name])
+best_model = main_pipe.classifiers_default()
+chosen_model = best_model
 
-df_submit = pd.concat([df_test['PassengerId'], y_test], axis=1)
+want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
+if want_hyper:
+    st.write(':arrow_forward: **Training the top model varying parameters using Random Search**')
+    tuned_ml = main_pipe.hypertuning_models(best_model)
+    chosen_model = tuned_ml
 
-csv_submit = df_submit.to_csv(index=False)
+st.write('The confusion matrix for the prediction is shown below.')
+X_pred_train = predict_model(chosen_model, data=X_train)
+y_surv_train = X_pred_train['prediction_label'].reset_index(drop=True)
+df_conf = pd.DataFrame(confusion_matrix(y, y_surv_train), index=['True 0', 'True 1'],
+                       columns=['Predicted 0', 'Predicted 1'])
+st.dataframe(df_conf)
+
+# final_clf = GradientBoostingClassifier(n_estimators=250, max_depth=4, loss="exponential", learning_rate=0.1)
+# final_clf.fit(X_train, y)
+# y_test = final_clf.predict(X_test)
 
 st.divider()
+st.subheader('Model testing')
 
-# @st.cache_data(experimental_allow_widgets=True)
+with st.echo():
+    X_pred = predict_model(chosen_model, data=X_test)
+    y_surv = X_pred['prediction_label'].reset_index(drop=True)
+    df_submit = pd.concat([df_test['PassengerId'], y_surv], axis=1, ignore_index=True)
+    df_submit.columns = ['PassengerId', 'Survived']
+    csv_submit = df_submit.to_csv(index=False)
+
+with st.expander('Click here to see the test dataset and the predicted values of the target feature'):
+    tab_pred, tab_test = st.tabs(['Predicted values', 'Test dataset'])
+    with tab_pred:
+        st.dataframe(df_submit, hide_index=True, use_container_width=True)
+
+    with tab_test:
+        st.dataframe(df_test, hide_index=True, use_container_width=True)
+
+
 def download_file():
     st.write(':arrow_forward: **Download dataframe into csv file**')
     filename = st.text_input('Enter file name:', value=p_title + '_file.csv')
