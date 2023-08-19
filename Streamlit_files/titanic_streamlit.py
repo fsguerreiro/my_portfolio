@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
 import time
+from math import ceil, floor
 
 from sklearn import preprocessing, impute
 from sklearn.pipeline import Pipeline
@@ -20,6 +21,41 @@ from pycaret.classification import *
 
 
 # Building functions:
+
+
+def func_feat(x, X_ref):
+    dict_feat = {'AgeInterval': {'message_box': "Add 'AgeInterval' categorical feature: Age data is split into 4 bins",
+                                 'method': pd.qcut(x['Age'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')},
+
+                 'FareInterval': {'message_box': "Add 'FareInterval' categorical feature: Fare data is split into 4 bins",
+                                  'method': pd.qcut(x['Fare'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')},
+
+                 'FarePp': {'message_box': "Add 'FarePp' numerical feature: ratio of Fare values to the family size",
+                            'method': x['Fare'] / (x['SibSp'] + x['Parch'] + 1)},
+
+                 'FmSize': {'message_box': "Add 'FmSize' numerical feature: sum of 'SibSp' and 'Parch'",
+                            'method': x['SibSp'] + x['Parch'] + 1},
+
+                 'Title': {'message_box': "Add 'Title' categorical feature: title of each passenger name",
+                           'method': X_ref['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1])},
+
+                 'IsAlone': {'message_box': "Add 'IsAlone' categorical feature: binary level to indicate whether the "
+                                            "passenger was travelling alone or not",
+                             'method': ((x['Parch'] == 0) & (x['SibSp'] == 0)).astype('category')},
+
+                 'HasCabin': {'message_box': "Add 'HasCabin' categorical feature: binary level to indicate whether the "
+                                             "passenger was in a cabin",
+                              'method': X_ref['Cabin'].notna().astype('category')}
+                 }
+
+    return dict_feat
+
+
+
+
+
+
+
 
 @st.cache_data
 def show_hist(dataframe, column):
@@ -46,12 +82,11 @@ def show_heatmap(dataframe):
 def make_filter():
 
     options = st.multiselect(
-        'Select which variables to filter by:',
-        list(df_train.columns))
+        'Select which variables to filter by:', list(df_train.columns))
     st.caption('*If no variable is selected, the method will return all rows of the dataset')
 
     df_filter = df_train.copy()
-    df_filter.loc[~df_filter.Age.isnull(), 'Age'] = df_filter.loc[~df_filter.Age.isnull(), 'Age'].astype('int')
+    # df_filter.loc[~df_filter.Age.isnull(), 'Age'] = df_filter.loc[~df_filter.Age.isnull(), 'Age'].astype('int')
 
     if options:
         for opt in options:
@@ -61,9 +96,10 @@ def make_filter():
 
             elif pd.api.types.is_any_real_numeric_dtype(df_filter[opt]):
                 ft = df_filter[opt]
-                step = (int(ft.max())+1 - int(ft.min()))/100 if pd.api.types.is_float_dtype(ft) else 1
-                filt = st.slider('Select {}:'.format(opt), int(ft.min()), int(ft.max())+1,
-                                 (int(ft.min()), int(ft.mean())+2), step)
+                step = (ceil(ft.max()) - floor(ft.min()))/100 if pd.api.types.is_float_dtype(ft) else 1
+                step = float(step)
+                filt = st.slider('Select {}:'.format(opt), ft.min(), ft.max(),
+                                 (ft.min(), ft.mean()+1), step)
                 df_filter = df_filter[ft.between(filt[0], filt[1])]
 
             else:
@@ -103,6 +139,8 @@ def load_data():
 
 p_title = 'Titanic challenge'
 st.set_page_config(page_title=p_title, page_icon=":ship:", layout='wide')
+
+
 
 st.title(':passenger_ship: Titanic - Machine Learning from Disaster (kaggle competition)', anchor='titanic_train')
 
@@ -449,73 +487,16 @@ class FeatureEng(BaseEstimator, TransformerMixin):
     @staticmethod
     def transform(self, x):
 
-        want_age_interval = st.checkbox("Add 'AgeInterval' categorical feature: Age data is split into 4 bins")
-        if want_age_interval:
-            try:
-                x['AgeInterval'] = pd.qcut(x['Age'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')
-                st.write(":heavy_check_mark: Operation successfully done. Feature **'AgeInterval'** has been added to"
-                         " the dataset.")
-            except:
-                st.write(':x: Operation not performed. Feature not included!')
-
-        want_fare_interval = st.checkbox("Add 'FareInterval' categorical feature: Fare data is split into 4 bins")
-        if want_fare_interval:
-            try:
-                x['FareInterval'] = pd.qcut(x['Fare'], [0, 0.25, 0.5, 0.75, 1])
-                st.write(":heavy_check_mark: Operation successfully done. Feature **'FareInterval'** has been added to"
-                         " the dataset.")
-            except:
-                st.write(':x: Operation not performed. Feature not included!')
-
-        want_fare_pp = st.checkbox("Add 'FarePp' numerical feature: ratio of Fare values to the family size")
-        if want_fare_pp:
-            try:
-                x['FarePp'] = x['Fare'] / (x['SibSp'] + x['Parch'] + 1)
-                st.write(":heavy_check_mark: Operation successfully done. Feature **'FarePp'** has been added to"
-                         " the dataset.")
-            except:
-                st.write(':x: Operation not performed. Feature not included!')
-
-        want_family_size = st.checkbox("Add 'FmSize' numerical feature: sum of 'SibSp' and 'Parch'")
-        if want_family_size:
-            try:
-                x['FmSize'] = x['SibSp'] + x['Parch'] + 1
-                st.write(":heavy_check_mark: Operation successfully done. Feature **'FmSize'** has been added to"
-                         " the dataset.")
-            except:
-                st.write(':x: Operation not performed. Feature not included!')
-
-        want_title = st.checkbox("Add 'Title' categorical feature: title of each passenger name")
-        if want_title:
-            try:
-                x['Title'] = X_ref['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1])
-                x['Title'] = x['Title'].astype('category')
-                st.write(":heavy_check_mark: Operation successfully done. Feature **'Title'** has been added to"
-                         " the dataset.")
-            except:
-                st.write(':x: Operation not performed. Feature not included!')
-
-        want_alone = st.checkbox("Add 'IsAlone' categorical feature: proxy level to indicate whether the passenger was "
-                                 "travelling alone or not")
-        if want_alone:
-            try:
-                x['IsAlone'] = (x['Parch'] == 0) & (x['SibSp'] == 0)
-                x['IsAlone'] = x['IsAlone'].astype(int).astype('category')
-                st.write(":heavy_check_mark: Operation successfully done. Feature **'IsAlone'** has been added to"
-                         " the dataset.")
-            except:
-                st.write(':x: Operation not performed. Feature not included!')
-
-        want_cabin = st.checkbox("Add 'HasCabin' categorical feature: proxy level to indicate whether the passenger was"
-                                 " in a cabin")
-        if want_cabin:
-            try:
-                x['HasCabin'] = X_ref['Cabin'].notna()
-                x['HasCabin'] = x['HasCabin'].astype(int).astype('category')
-                st.write(":heavy_check_mark: Operation successfully done. Feature **'HasCabin'** has been added to"
-                         " the dataset.")
-            except:
-                st.write(':x: Operation not performed. Feature not included!')
+        dict_feat = func_feat(x=x, X_ref=X_ref)
+        for key, _ in dict_feat.items():
+            want_feat = st.checkbox(dict_feat[key]['message_box'])
+            if want_feat:
+                try:
+                    x[key] = dict_feat[key]['method']
+                    st.write(":heavy_check_mark: Operation successfully done. Feature {} has been added to the dataset."
+                             .format(key))
+                except:
+                    st.write(':x: Operation not performed. Feature not included!')
 
         return x
 
@@ -581,10 +562,21 @@ class Encoder(BaseEstimator, TransformerMixin):
     @staticmethod
     def transform(self, x):
         list_enc = list(x.select_dtypes('category'))
-        st.write('OneHotEncoder method has been applied for features **{}**.'.format(', '.join(list_enc)))
-        dumm = pd.get_dummies(x.select_dtypes('category'), dtype=int)
+        list_enc2 = list_enc.copy()
+
+        for c in list_enc2:
+            if x[c].nunique() == 2:
+                aux = {x[c].unique()[0]: 0, x[c].unique()[1]: 1}
+                st.write(':heavy_check_mark: Ordinal encoding has been applied for **{}**: 0 for {} and 1 for {}'
+                         .format(c, x[c].unique()[0], x[c].unique()[1]))
+                x[c] = x[c].replace(aux)
+                list_enc.remove(c)
+
+        st.write(':heavy_check_mark: One Hot Encoding method has been applied for features **{}**.'
+                 .format(', '.join(list_enc)))
+        dumm = pd.get_dummies(x[list_enc], dtype=int)
         x = pd.concat([x, dumm], axis=1)
-        x.drop(columns=list(x.select_dtypes(['category'])), inplace=True)
+        x.drop(columns=list_enc, inplace=True)
 
         return x
 
@@ -616,7 +608,8 @@ class Pipelines:
         #         scores = cross_val_score(clf, xx, yy, cv=5)
         #         scr = scores.mean()
         #         st.markdown('- The score for {} is {:.2%}'.format(model, scr))
-        s = setup(data=pd.concat([X_train, y], axis=1), target=y_name, preprocess=False, fold=5, train_size=0.75)
+        s = setup(data=pd.concat([X_train, y], axis=1), target=y_name, preprocess=False, fold=5, data_split_stratify=False,
+                  verbose=False, data_split_shuffle=False, fold_strategy='kfold', session_id=123)
         best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5)
         r = pull()
         r.drop(columns='TT (Sec)', inplace=True)
