@@ -423,6 +423,7 @@ class FillNA(BaseEstimator, TransformerMixin):
 
     @staticmethod
     def transform(self, x):
+        global num_drop
         cols_na = [col for col in x.columns if any(x[col].isnull())]
 
         for c in cols_na:
@@ -452,6 +453,11 @@ class FillNA(BaseEstimator, TransformerMixin):
                             'to be submitted in its full size. The observations cannot be dropped from the analysis!'
                             .format(c))
                     else:
+                        drop_idx = list(x[x[c].isnull()].index)
+                        x.dropna(subset=c, inplace=True, ignore_index=False)
+                        y.drop(index=drop_idx, inplace=True)
+                        num_drop += len(drop_idx)
+
                         st.write(':heavy_check_mark: Operation successfully done: the rows have been dropped.')
 
                     continue
@@ -602,7 +608,7 @@ class Pipelines:
     def classifiers_default(X_tgt, y_tgt, y_n):
         setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
               data_split_stratify=False, data_split_shuffle=False, fold_strategy='kfold')
-        best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5, budget_time=2)
+        best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5, budget_time=3)
         r = pull()
         r.drop(columns='TT (Sec)', inplace=True)
         st.dataframe(r, hide_index=True, use_container_width=True)
@@ -619,6 +625,7 @@ class Pipelines:
         return tuned
 
 
+num_drop = 0
 X_train_test = pd.concat([df_train.drop(columns=y_name, axis=1), df_test], axis=0, ignore_index=True)
 X_train_test = set_dtypes(X_train_test, level=5)
 
@@ -630,18 +637,24 @@ X_pipe = main_pipe.preproc_pipeline(X_train_test)
 col_final = X_pipe.columns
 
 X_tt_scaler = main_pipe.scaling(X_pipe)
-X_train = X_tt_scaler[0:df_train.shape[0]][:]
-X_test = X_tt_scaler[df_train.shape[0]:][:]
+
+X_train = X_tt_scaler[0:len(df_train)][:]
+X_test = X_tt_scaler[len(df_train):][:]
 X_train.columns = X_test.columns = list(col_final)
 
+idx = y.index.values.tolist()
+X_train = X_train.reindex(idx)
 
 with st.expander('Click here to see the dataframe ready for training and testing'):
 
     tab_X, tab_y, tab_corr = st.tabs(['X-data', 'y-data', 'Correlation matrix'])
     with tab_X:
-        st.dataframe(X_pipe, hide_index=False, use_container_width=True)
+        st.write(X_train.shape)
+        st.write(X_test.shape)
+        st.dataframe(X_train, hide_index=False, use_container_width=True)
 
     with tab_y:
+        st.write(y.shape)
         st.dataframe(y, hide_index=False, use_container_width=True)
 
     with tab_corr:
@@ -655,6 +668,7 @@ st.subheader('Model training')
 
 st.write(':arrow_forward: **Training models using default parameters**')
 
+# st.stop()
 
 best_model = main_pipe.classifiers_default(X_tgt=X_train, y_tgt=y, y_n=y_name)
 chosen_model = best_model
