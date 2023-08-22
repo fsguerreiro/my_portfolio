@@ -651,7 +651,7 @@ with st.expander('Click here to see the dataframe ready for training and testing
     with tab_X:
         st.write(X_train.shape)
         st.write(X_test.shape)
-        st.dataframe(X_train, hide_index=False, use_container_width=True)
+        st.dataframe(X_pipe, hide_index=False, use_container_width=True)
 
     with tab_y:
         st.write(y.shape)
