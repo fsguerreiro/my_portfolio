@@ -606,7 +606,7 @@ class Pipelines:
     @staticmethod
     @st.cache_resource
     def classifiers_default(X_tgt, y_tgt, y_n):
-        setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
+        s = setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
               data_split_stratify=False, data_split_shuffle=False, fold_strategy='kfold')
         best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5)
         r = pull()
