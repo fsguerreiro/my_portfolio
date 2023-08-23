@@ -138,7 +138,7 @@ def func_feat(x, x_ref):
                             'method': x['SibSp'] + x['Parch'] + 1},
 
                  'Title': {'message_box': "Add 'Title' categorical feature: title of each passenger name",
-                           'method': x_ref['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1])},
+                           'method': x_ref['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1]).astype('category')},
 
                  'IsAlone': {'message_box': "Add 'IsAlone' categorical feature: binary level to indicate whether the "
                                             "passenger was travelling alone or not",
@@ -423,7 +423,6 @@ class FillNA(BaseEstimator, TransformerMixin):
 
     @staticmethod
     def transform(self, x):
-        global num_drop
         cols_na = [col for col in x.columns if any(x[col].isnull())]
 
         for c in cols_na:
@@ -456,8 +455,6 @@ class FillNA(BaseEstimator, TransformerMixin):
                         drop_idx = list(x[x[c].isnull()].index)
                         x.dropna(subset=c, inplace=True, ignore_index=False)
                         y.drop(index=drop_idx, inplace=True)
-                        num_drop += len(drop_idx)
-
                         st.write(':heavy_check_mark: Operation successfully done: the rows have been dropped.')
 
                     continue
@@ -610,7 +607,7 @@ class Pipelines:
               data_split_stratify=False, data_split_shuffle=False, fold_strategy='kfold')
         best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5)
         r = pull()
-        # r.drop(columns='TT (Sec)', inplace=True)
+        r.drop(columns='TT (Sec)', inplace=True)
         st.dataframe(r, hide_index=True, use_container_width=True)
 
         return best
@@ -625,7 +622,6 @@ class Pipelines:
         return tuned
 
 
-num_drop = 0
 X_train_test = pd.concat([df_train.drop(columns=y_name, axis=1), df_test], axis=0, ignore_index=True)
 X_train_test = set_dtypes(X_train_test, level=5)
 
@@ -639,37 +635,34 @@ main_pipe = Pipelines()
 
 X_pipe = main_pipe.preproc_pipeline(X_train_test)
 
-X_train = X_pipe.loc[X_pipe['IsTrain'] == 1]
-X_test = X_pipe.loc[X_pipe['IsTrain'] == 0]
+X_train0 = X_pipe.loc[X_pipe['IsTrain'] == 1]
+X_test0 = X_pipe.loc[X_pipe['IsTrain'] == 0]
 
-X_train = main_pipe.scaling(X_train)
-X_test = main_pipe.scaling(X_test)
+X_train0.drop(columns='IsTrain', inplace=True)
+X_test0.drop(columns='IsTrain', inplace=True)
+
+X_train = main_pipe.scaling(X_train0)
+X_test = main_pipe.scaling(X_test0)
+X_pipe.drop(columns='IsTrain', inplace=True)
 
 col_final = X_pipe.columns
 X_train.columns = X_test.columns = list(col_final)
 
-X_train.drop(columns='IsTrain', inplace=True)
-X_test.drop(columns='IsTrain', inplace=True)
-
-y = y.reset_index().drop(columns='index', axis=1)
-
-# idx = y.index.values.tolist()
-# X_train = X_train.reindex(idx)
+y.reset_index(drop=True, inplace=True)
 
 with st.expander('Click here to see the dataframe ready for training and testing'):
 
     tab_X, tab_y, tab_corr = st.tabs(['X-data', 'y-data', 'Correlation matrix'])
     with tab_X:
-        st.write(X_train.shape)
-        st.write(X_test.shape)
-        st.dataframe(X_train, hide_index=False, use_container_width=True)
+        st.write(f'Size of train dataset: {X_train.shape}')
+        st.dataframe(X_train0, hide_index=False, use_container_width=True)
 
     with tab_y:
-        st.write(y.shape)
+        st.write(f'Size of target feature: {y.shape}')
         st.dataframe(y, hide_index=False, use_container_width=True)
 
     with tab_corr:
-        X_corr = X_pipe.copy()
+        X_corr = X_train.copy()
         X_corr.insert(0, y_name, y)
         st.dataframe(X_corr.corr())
 
