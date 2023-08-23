@@ -651,6 +651,8 @@ X_train.columns = X_test.columns = list(col_final)
 X_train.drop(columns='IsTrain', inplace=True)
 X_test.drop(columns='IsTrain', inplace=True)
 
+y = y.reset_index().drop(columns='index', axis=1)
+
 # idx = y.index.values.tolist()
 # X_train = X_train.reindex(idx)
 
@@ -660,7 +662,7 @@ with st.expander('Click here to see the dataframe ready for training and testing
     with tab_X:
         st.write(X_train.shape)
         st.write(X_test.shape)
-        st.dataframe(X_pipe, hide_index=False, use_container_width=True)
+        st.dataframe(X_train, hide_index=False, use_container_width=True)
 
     with tab_y:
         st.write(y.shape)
