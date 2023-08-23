@@ -608,9 +608,9 @@ class Pipelines:
     def classifiers_default(X_tgt, y_tgt, y_n):
         setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
               data_split_stratify=False, data_split_shuffle=False, fold_strategy='kfold')
-        best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5, budget_time=3)
+        best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5)
         r = pull()
-        r.drop(columns='TT (Sec)', inplace=True)
+        # r.drop(columns='TT (Sec)', inplace=True)
         st.dataframe(r, hide_index=True, use_container_width=True)
 
         return best
@@ -629,21 +629,29 @@ num_drop = 0
 X_train_test = pd.concat([df_train.drop(columns=y_name, axis=1), df_test], axis=0, ignore_index=True)
 X_train_test = set_dtypes(X_train_test, level=5)
 
+X_train_test.loc[0:len(df_train), 'IsTrain'] = 1
+X_train_test.loc[len(df_train):, 'IsTrain'] = 0
+
+
 X_ref = X_train_test.copy()
 
 main_pipe = Pipelines()
 
 X_pipe = main_pipe.preproc_pipeline(X_train_test)
-col_final = X_pipe.columns
+#col_final = X_pipe.columns
 
 X_tt_scaler = main_pipe.scaling(X_pipe)
 
-X_train = X_tt_scaler[0:len(df_train)][:]
-X_test = X_tt_scaler[len(df_train):][:]
-X_train.columns = X_test.columns = list(col_final)
+X_train = X_train_test.loc[X_train_test['IsTrain'] == 1]
+X_test = X_train_test.loc[X_train_test['IsTrain'] == 0]
 
-idx = y.index.values.tolist()
-X_train = X_train.reindex(idx)
+#X_train.columns = X_test.columns = list(col_final)
+
+X_train.drop(columns='IsTrain', inplace=True)
+X_test.drop(columns='IsTrain', inplace=True)
+
+# idx = y.index.values.tolist()
+# X_train = X_train.reindex(idx)
 
 with st.expander('Click here to see the dataframe ready for training and testing'):
 
