@@ -638,13 +638,14 @@ X_ref = X_train_test.copy()
 main_pipe = Pipelines()
 
 X_pipe = main_pipe.preproc_pipeline(X_train_test)
+
+X_train = X_pipe.loc[X_pipe['IsTrain'] == 1]
+X_test = X_pipe.loc[X_pipe['IsTrain'] == 0]
+
+X_train = main_pipe.scaling(X_train)
+X_test = main_pipe.scaling(X_test)
+
 col_final = X_pipe.columns
-
-X_tt_scaler = main_pipe.scaling(X_pipe)
-
-X_train = X_tt_scaler.loc[X_train_test['IsTrain'] == 1]
-X_test = X_tt_scaler.loc[X_train_test['IsTrain'] == 0]
-
 X_train.columns = X_test.columns = list(col_final)
 
 X_train.drop(columns='IsTrain', inplace=True)
