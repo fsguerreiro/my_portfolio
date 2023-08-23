@@ -606,7 +606,7 @@ class Pipelines:
     @staticmethod
     @st.cache_resource
     def classifiers_default(X_tgt, y_tgt, y_n):
-        s = setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
+        setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
               data_split_stratify=False, data_split_shuffle=False, fold_strategy='kfold')
         best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5)
         r = pull()
@@ -638,14 +638,14 @@ X_ref = X_train_test.copy()
 main_pipe = Pipelines()
 
 X_pipe = main_pipe.preproc_pipeline(X_train_test)
-#col_final = X_pipe.columns
+col_final = X_pipe.columns
 
 X_tt_scaler = main_pipe.scaling(X_pipe)
 
-X_train = X_train_test.loc[X_train_test['IsTrain'] == 1]
-X_test = X_train_test.loc[X_train_test['IsTrain'] == 0]
+X_train = X_tt_scaler.loc[X_train_test['IsTrain'] == 1]
+X_test = X_tt_scaler.loc[X_train_test['IsTrain'] == 0]
 
-#X_train.columns = X_test.columns = list(col_final)
+X_train.columns = X_test.columns = list(col_final)
 
 X_train.drop(columns='IsTrain', inplace=True)
 X_test.drop(columns='IsTrain', inplace=True)
