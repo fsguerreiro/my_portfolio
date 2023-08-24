@@ -143,7 +143,7 @@ def func_feat(x, x_ref):
 
                  'MultiTicket': {'message_box': "Add 'MultiTicket' numerical feature: number of people to hold the "
                                                 "same ticket number including the passenger himself",
-                                 'method': x_ref['Ticket'].map(x_ref['Ticket'].value_counts()).astype(int)}
+                                 'method': x_ref['Ticket'].map(x_ref['Ticket'].value_counts()).astype('category')}
                  }
 
     return dict_feat
