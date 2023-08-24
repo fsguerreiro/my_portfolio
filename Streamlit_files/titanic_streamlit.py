@@ -20,6 +20,12 @@ from pycaret.classification import *
 # import numpy as np
 
 
+
+
+
+
+
+
 # Building functions:
 
 
@@ -186,6 +192,23 @@ def introduction():
 
 p_title = 'Titanic challenge'
 st.set_page_config(page_title=p_title, page_icon=":ship:", layout='wide')
+
+
+background_style = '''
+<style>
+body {
+      background-image: url('https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.npr.org%2F2012%2F03%2F30%2F149635287%2Fjames-cameron-diving-deep-dredging-up-titanic&psig=AOvVaw3rxwba-E1Daw1uTMadqONC&ust=1692976995647000&source=images&cd=vfe&opi=89978449&ved=0CBAQjRxqFwoTCNC2wPXM9YADFQAAAAAdAAAAABAY');
+      background-size: cover;
+     }
+</style>
+'''
+
+st.markdown(background_style, unsafe_allow_html=True)
+
+
+
+
+
 introduction()
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -196,8 +219,6 @@ with st.echo('above'):
 
 time.sleep(1)
 data_load_state.text("Datasets successfully loaded! (using st.cache_data)")
-
-# df_train.loc[df_train.Embarked.isnull(), 'Embarked'] = 'S'
 
 df_train = set_dtypes(df_train, level=5)
 df_test = set_dtypes(df_test, level=5)
@@ -250,6 +271,7 @@ def show_overview():
         st.markdown("- Number of missing cells: {}".format(df_train.isnull().sum().sum()))
         st.markdown("- Missing cells (%): {:.2%}".format(df_train.isnull().sum().sum()/df_train.size))
         st.markdown("- Number of duplicated rows: {}".format(df_train.duplicated().sum()))
+        st.markdown("- Total size in memory: {:.2f} KB".format(df_train.memory_usage(deep=True).sum()/1024))
 
     with col2:
         st.write('**Type of features**')
@@ -264,7 +286,7 @@ def show_overview():
 show_overview()
 
 st.divider()
-# ---------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 
 # Variable information
 
@@ -672,7 +694,7 @@ st.subheader('Model training')
 
 st.write(':arrow_forward: **Training models using default parameters**')
 
-# st.stop()
+st.stop()
 
 best_model = main_pipe.classifiers_default(X_tgt=X_train, y_tgt=y, y_n=y_name)
 chosen_model = best_model
