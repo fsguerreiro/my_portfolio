@@ -20,12 +20,6 @@ from pycaret.classification import *
 # import numpy as np
 
 
-
-
-
-
-
-
 # Building functions:
 
 
@@ -56,32 +50,25 @@ def make_filter():
     options = st.multiselect(
         'Select which variables to filter by:', list(df_train.columns))
     st.caption('*If no variable is selected, the method will return all rows of the dataset')
-
     df_filter = df_train.copy()
-    # df_filter.loc[~df_filter.Age.isnull(), 'Age'] = df_filter.loc[~df_filter.Age.isnull(), 'Age'].astype('int')
 
     if options:
         for opt in options:
-            if df_filter[opt].dtype == 'category':
-                filt = st.radio('Select {}:'.format(opt), tuple(df_filter[opt].unique()))
-                df_filter = df_filter.loc[(df_filter[opt] == filt)]
+            ft = df_filter[opt]
+            if ft.dtype == 'category':
+                filt = st.radio(f'Select {opt}:', tuple(ft.unique()))
+                df_filter = df_filter.loc[(ft == filt)]
 
-            elif pd.api.types.is_any_real_numeric_dtype(df_filter[opt]):
-                ft = df_filter[opt]
+            elif pd.api.types.is_any_real_numeric_dtype(ft):
                 step = (ceil(ft.max()) - floor(ft.min()))/100 if pd.api.types.is_float_dtype(ft) else 1
-                step = float(step)
-                filt = st.slider('Select {}:'.format(opt), ft.min(), ft.max(),
-                                 (ft.min(), ft.mean()+1), step)
+                filt = st.slider(f'Select {opt}:', ft.min(), ft.max(), (floor(ft.min()), ceil(ft.mean())+1), step)
                 df_filter = df_filter[ft.between(filt[0], filt[1])]
 
             else:
-                filt = st.text_input('Input {}'.format(opt), key='texto_'+opt)
-                df_filter = df_filter.loc[df_filter[opt].str.contains(str(filt), case=False, na=False)]
+                filt = st.text_input(f'Input {opt}', key='texto_'+opt)
+                df_filter = df_filter.loc[ft.str.contains(str(filt), case=False, na=False)]
 
-        st.write("{} result(s) found.".format(df_filter.shape[0]))
-
-    else:
-        st.write("{} result(s) found.".format(df_filter.shape[0]))
+    st.write(f"{len(df_filter)} result(s) found.")
 
     return df_filter
 
@@ -152,7 +139,11 @@ def func_feat(x, x_ref):
 
                  'HasCabin': {'message_box': "Add 'HasCabin' categorical feature: binary level to indicate whether the "
                                              "passenger was in a cabin",
-                              'method': x_ref['Cabin'].notna().astype('category')}
+                              'method': x_ref['Cabin'].notna().astype('category')},
+
+                 'MultiTicket': {'message_box': "Add 'MultiTicket' numerical feature: number of people to hold the "
+                                                "same ticket number including the passenger himself",
+                                 'method': x_ref['Ticket'].map(x_ref['Ticket'].value_counts()).astype(int)}
                  }
 
     return dict_feat
@@ -192,22 +183,6 @@ def introduction():
 
 p_title = 'Titanic challenge'
 st.set_page_config(page_title=p_title, page_icon=":ship:", layout='wide')
-
-
-background_style = '''
-<style>
-body {
-      background-image: url('https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.npr.org%2F2012%2F03%2F30%2F149635287%2Fjames-cameron-diving-deep-dredging-up-titanic&psig=AOvVaw3rxwba-E1Daw1uTMadqONC&ust=1692976995647000&source=images&cd=vfe&opi=89978449&ved=0CBAQjRxqFwoTCNC2wPXM9YADFQAAAAAdAAAAABAY');
-      background-size: cover;
-     }
-</style>
-'''
-
-st.markdown(background_style, unsafe_allow_html=True)
-
-
-
-
 
 introduction()
 
