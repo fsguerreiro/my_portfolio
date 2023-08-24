@@ -669,7 +669,7 @@ st.subheader('Model training')
 
 st.write(':arrow_forward: **Training models using default parameters**')
 
-st.stop()
+# st.stop()
 
 best_model = main_pipe.classifiers_default(X_tgt=X_train, y_tgt=y, y_n=y_name)
 chosen_model = best_model
