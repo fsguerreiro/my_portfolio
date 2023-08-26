@@ -3,3 +3,4 @@ plotly
 scikit-learn
 seaborn
 pycaret
+wordcloud

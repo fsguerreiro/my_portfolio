@@ -5,6 +5,7 @@ import plotly.express as px
 import seaborn as sns
 import time
 from math import ceil, floor
+from wordcloud import WordCloud
 
 from sklearn import preprocessing, impute
 from sklearn.pipeline import Pipeline
@@ -24,8 +25,8 @@ from pycaret.classification import *
 
 
 @st.cache_data
-def show_hist(dataframe, column):
-    figg = px.histogram(dataframe, column)
+def show_hist(df, column):
+    figg = px.histogram(df, column)
     figg.update_layout(xaxis_title=column, yaxis_title="Frequency", font={'size': 14, 'color': 'black'},
                        template='plotly_dark', plot_bgcolor='white', bargap=0.1)
     figg.update_xaxes(mirror=True, ticks='outside', showline=True, linecolor='black', gridcolor='lightgrey')
@@ -34,34 +35,38 @@ def show_hist(dataframe, column):
 
 
 @st.cache_data
-def show_heatmap(dataframe):
-    df_heatmap = dataframe.copy()
+def show_heatmap(df):
+    df_heatmap = df.copy()
     df_heatmap[y_name] = df_heatmap[y_name].astype(int)
     df_heatmap2 = df_heatmap.drop(columns=list(df_heatmap.select_dtypes('object')), axis=1)
     dum = pd.get_dummies(df_heatmap2, dtype=int)
     fiig, ax = plt.subplots(figsize=(12, 7))
-    sns.heatmap(dum.corr(numeric_only=True).round(3), annot=True, cmap='coolwarm', linewidth=.5, cbar=False)
+    sns.heatmap(dum.corr(numeric_only=True), fmt=".3f", annot=True, cmap='coolwarm', linewidth=.5, cbar=False)
     ax.tick_params(axis='both', labelsize=12, grid_color='b')
     st.pyplot(fiig)
 
 
-def make_filter():
+def make_filter(df):
 
-    options = st.multiselect(
-        'Select which variables to filter by:', list(df_train.columns))
+    options = st.multiselect('Select which variables to filter by:', list(df.columns))
     st.caption('*If no variable is selected, the method will return all rows of the dataset')
-    df_filter = df_train.copy()
+    df_filter = df.copy()
 
     if options:
         for opt in options:
             ft = df_filter[opt]
+
             if ft.dtype == 'category':
-                filt = st.radio(f'Select {opt}:', tuple(ft.unique()))
+                filt = st.radio(f'Select {opt}:', list(ft.unique()))
                 df_filter = df_filter.loc[(ft == filt)]
 
-            elif pd.api.types.is_any_real_numeric_dtype(ft):
-                step = (ceil(ft.max()) - floor(ft.min()))/100 if pd.api.types.is_float_dtype(ft) else 1
-                filt = st.slider(f'Select {opt}:', ft.min(), ft.max(), (floor(ft.min()), ceil(ft.mean())+1), step)
+            elif pd.api.types.is_float_dtype(ft):
+                step = (ceil(ft.max()) - floor(ft.min()))/100
+                filt = st.slider(f'Select {opt}:', ft.min(), ft.max(), (ft.min(), ft.mean()+1), step)
+                df_filter = df_filter[ft.between(filt[0], filt[1])]
+
+            elif pd.api.types.is_integer_dtype(ft):
+                filt = st.slider(f'Select {opt}:', ft.min(), ft.max(), (ft.min(), ceil(ft.mean()) + 1), 1)
                 df_filter = df_filter[ft.between(filt[0], filt[1])]
 
             else:
@@ -73,7 +78,7 @@ def make_filter():
     return df_filter
 
 
-def set_dtypes(df, level):
+def set_dtypes(df, level=5):
     for col in df.columns:
         if pd.api.types.is_numeric_dtype(df[col]) and df[col].nunique() <= level:
             df[col] = df[col].astype('category')
@@ -115,7 +120,6 @@ def label_def():
     return feats
 
 
-@st.cache_data
 def func_feat(x, x_ref):
     dict_feat = {'AgeInterval': {'message_box': "Add 'AgeInterval' categorical feature: Age data is split into 4 bins",
                                  'method': pd.qcut(x['Age'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')},
@@ -191,15 +195,14 @@ introduction()
 with st.echo('above'):
     data_load_state = st.text('Loading data...')
     df_train, df_test = load_data()
+    y_name = 'Survived'
+    y = df_train[y_name]
 
 time.sleep(1)
 data_load_state.text("Datasets successfully loaded! (using st.cache_data)")
 
-df_train = set_dtypes(df_train, level=5)
-df_test = set_dtypes(df_test, level=5)
-
-y_name = 'Survived'
-y = df_train[y_name]
+df_train = set_dtypes(df_train)
+df_test = set_dtypes(df_test)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Filter data function is in the sidebar (left-hand side of the page): results are shown in the tab 'filtered data'
@@ -210,7 +213,7 @@ The filter function can be accessed by the sidebar on the left side of the page.
 
 with st.sidebar:
     st.subheader('Filter train dataset')
-    df_filtered = make_filter()
+    df_filtered = make_filter(df_train)
 
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -221,7 +224,7 @@ st.dataframe(df_filtered, hide_index=True, use_container_width=True)
 # Expanded tab to show explanation of the variables
 
 st.write('Here is a brief explanation about the passenger features:')
-with st.expander("See feature notes"):
+with st.expander("See features note"):
     features = label_def()
     df_exp = pd.DataFrame({'Variable': df_train.columns, 'Definition': features})
     st.dataframe(df_exp, hide_index=True, use_container_width=True)
@@ -233,7 +236,7 @@ st.divider()
 
 
 @st.cache_data(experimental_allow_widgets=True)
-def show_overview():
+def show_overview(df):
 
     st.subheader('Overview')
 
@@ -241,24 +244,24 @@ def show_overview():
     with col1:
         st.write('**Train dataset statistics**')
 
-        st.markdown("- Number of observations: {}".format(df_train.shape[0]))
-        st.markdown("- Number of features: {}".format(df_train.shape[1]))
-        st.markdown("- Number of missing cells: {}".format(df_train.isnull().sum().sum()))
-        st.markdown("- Missing cells (%): {:.2%}".format(df_train.isnull().sum().sum()/df_train.size))
-        st.markdown("- Number of duplicated rows: {}".format(df_train.duplicated().sum()))
-        st.markdown("- Total size in memory: {:.2f} KB".format(df_train.memory_usage(deep=True).sum()/1024))
+        st.markdown(f"- Number of observations: {len(df)}")
+        st.markdown(f"- Number of features: {len(df.columns)}")
+        st.markdown(f"- Number of missing cells: {df.isnull().sum().sum()}")
+        st.markdown("- Missing cells (%): {:.2%}".format(df.isnull().sum().sum()/df.size))
+        st.markdown(f"- Number of duplicated rows: {df.duplicated().sum()}")
+        st.markdown("- Total size in memory: {:.2f} KB".format(df.memory_usage(deep=True).sum()/1024))
 
     with col2:
         st.write('**Type of features**')
 
-        df_type = pd.concat([pd.Series(df_train.select_dtypes('number').columns),
-                             pd.Series(df_train.select_dtypes('category').columns),
-                             pd.Series(df_train.select_dtypes('object').columns)], axis=1)
+        df_type = pd.concat([pd.Series(df.select_dtypes('number').columns),
+                             pd.Series(df.select_dtypes('category').columns),
+                             pd.Series(df.select_dtypes('object').columns)], axis=1)
         df_type = df_type.set_axis(['Numerical features', 'Categorical features', 'Text features'], axis='columns')
         st.dataframe(df_type, hide_index=True, use_container_width=True)
 
 
-show_overview()
+show_overview(df_train)
 
 st.divider()
 # ----------------------------------------------------------------------------------------------------------------------
@@ -266,24 +269,24 @@ st.divider()
 # Variable information
 
 
-def show_var_info():
+def show_var_info(df):
     st.subheader('Features information')
-    name_num = st.tabs(list(df_train.select_dtypes('number').columns))
+    name_num = st.tabs(list(df.select_dtypes('number').columns))
 
     for idx, tabb in enumerate(name_num):
         with tabb:
-            coluna = df_train.select_dtypes('number').columns[idx]
+            coluna = df.select_dtypes('number').columns[idx]
 
             col1a, col2a, col3a = st.columns([1.3, 1, 2.5], gap="medium")
 
             with col1a:
                 st.write('**Basic information**')
 
-                df_n1 = pd.DataFrame(data=[df_train.select_dtypes('number')[coluna].nunique(),
-                                           df_train.select_dtypes('number')[coluna].isnull().sum()],
+                df_n1 = pd.DataFrame(data=[df.select_dtypes('number')[coluna].nunique(),
+                                           df.select_dtypes('number')[coluna].isnull().sum()],
                                      index=['# of distinct values', '# of missing cells'], columns=[' '])
 
-                df_n2 = pd.DataFrame(list(df_train.select_dtypes('number')[coluna].describe()),
+                df_n2 = pd.DataFrame(list(df.select_dtypes('number')[coluna].describe()),
                                      index=['# of non-null cells', 'Mean value', 'Std deviation', 'Minimum',
                                             '1st quartile', 'Median', '3rd quartile', 'Maximum'],
                                      columns=[' '])
@@ -292,40 +295,79 @@ def show_var_info():
 
             with col2a:
                 st.write('**Most frequent values**')
-                df_col4 = pd.DataFrame(df_train.select_dtypes('number')[coluna].value_counts())
+                df_col4 = pd.DataFrame(df.select_dtypes('number')[coluna].value_counts())
                 df_col4.reset_index(inplace=True)
                 st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
 
             with col3a:
-                show_hist(df_train.select_dtypes('number'), coluna)
+                show_hist(df.select_dtypes('number'), coluna)
 
-    name_cat = st.tabs(list(df_train.select_dtypes('category').columns))
+    name_cat = st.tabs(list(df.select_dtypes('category').columns))
 
     for idx, tabb in enumerate(name_cat):
         with tabb:
-            coluna = df_train.select_dtypes('category').columns[idx]
-            n_unique = df_train.select_dtypes('category')[coluna].nunique()
-            n_null = df_train.select_dtypes('category')[coluna].isnull().sum()
+            coluna = df.select_dtypes('category').columns[idx]
+            n_unique = df.select_dtypes('category')[coluna].nunique()
+            n_null = df.select_dtypes('category')[coluna].isnull().sum()
 
             col1b, col2b, col3b = st.columns([1.2, 1, 2], gap="medium")
 
             with col1b:
                 st.write('**Basic information**')
                 df_col3 = pd.DataFrame(data=[n_unique, n_null],
-                                       index=['Number of distinct values', 'Number of missing cells'], columns=[' '])
+                                       index=['# of distinct values', '# of missing cells'], columns=[' '])
                 st.dataframe(df_col3, use_container_width=True)
 
             with col2b:
                 st.write('**Most frequent values**')
-                df_col4 = pd.DataFrame(df_train.select_dtypes('category')[coluna].value_counts())
+                df_col4 = pd.DataFrame(df.select_dtypes('category')[coluna].value_counts())
                 df_col4.reset_index(inplace=True)
                 st.dataframe(df_col4.head(10), hide_index=True, use_container_width=True)
 
             with col3b:
-                show_hist(df_train.select_dtypes('category'), coluna)
+                show_hist(df.select_dtypes('category'), coluna)
 
+    name_text = st.tabs(list(df.select_dtypes('object').columns))
+    for idx, tabb in enumerate(name_text):
+        with tabb:
+            coluna = df.select_dtypes('object').columns[idx]
+            n_unique = df.select_dtypes('object')[coluna].nunique()
+            n_null = df.select_dtypes('object')[coluna].isnull().sum()
 
-show_var_info()
+            col1t, col2t, col3t = st.columns([1.2, 1, 2], gap="medium")
+            with col1t:
+                st.write('**Basic information**')
+                df_col4 = pd.DataFrame(data=[n_unique, n_null],
+                                       index=['# of distinct values', '# of missing cells'], columns=[' '])
+                st.dataframe(df_col4, use_container_width=True)
+
+            with col2t:
+                st.write('**Most frequent words**')
+                # df_col5 = pd.DataFrame(df.select_dtypes('object')[coluna].value_counts())
+                # df_col5.reset_index(inplace=True)
+                # st.dataframe(df_col5.head(10), hide_index=True, use_container_width=True)
+
+                # c = pd.DataFrame(' '.join(df[coluna].dropna()).split())
+                sp = ['(', ')', '.', ',', '"', "'"]
+                c = ' '.join(df[coluna].dropna())
+                for i in sp:
+                    c = c.replace(i, '')
+                dt = pd.DataFrame(c.split())
+                df_col5 = pd.DataFrame(dt.value_counts())
+                df_col5.reset_index(inplace=True)
+                df_col5.columns = [coluna, 'count']
+                st.dataframe(df_col5, hide_index=True, use_container_width=True)
+
+            with col3t:
+                st.write('**Word cloud**')
+                wc = WordCloud(max_font_size=100, width=400, height=300, max_words=100, include_numbers=True,
+                               background_color="white").generate(' '.join(df[coluna].dropna()))
+                plt.imshow(wc, interpolation="bilinear")
+                plt.axis("off")
+                plt.show()
+                st.pyplot()
+
+show_var_info(df_train)
 
 st.divider()
 # ----------------------------------------------------------------------------------------------------------------------
@@ -372,7 +414,7 @@ with tab3:
             st.dataframe(df_train.groupby(option_list).size().reset_index(name='count'),
                          hide_index=True, use_container_width=True)
     except ValueError:
-        st.write('Error: it must be different features.')
+        st.write(':x: Error: it must be different features.')
 
 with tab4:
     col1c, col2c = st.columns([1, 4], gap="small")
@@ -570,14 +612,13 @@ class Encoder(BaseEstimator, TransformerMixin):
 
         for c in list_enc2:
             if x[c].nunique() == 2:
-                aux = {x[c].unique()[0]: 0, x[c].unique()[1]: 1}
-                st.write(':heavy_check_mark: Ordinal Encoding has been applied for **{}**: 0 for {} and 1 for {}.'
-                         .format(c, x[c].unique()[0], x[c].unique()[1]))
-                x[c] = x[c].replace(aux)
+                proxy = {x[c].unique()[0]: 0, x[c].unique()[1]: 1}
+                st.write(f':heavy_check_mark: Ordinal Encoding has been applied for **{c}**: 0 for {x[c].unique()[0]} '
+                         f'and 1 for {x[c].unique()[1]}.')
+                x[c] = x[c].replace(proxy)
                 list_enc.remove(c)
 
-        st.write(':heavy_check_mark: One Hot Encoding has been applied for features **{}**.'
-                 .format(', '.join(list_enc)))
+        st.write(f":heavy_check_mark: One Hot Encoding has been applied for features **{', '.join(list_enc)}**.")
         dumm = pd.get_dummies(x[list_enc], dtype=int)
         x = pd.concat([x, dumm], axis=1)
         x.drop(columns=list_enc, inplace=True)
@@ -620,11 +661,10 @@ class Pipelines:
 
 
 X_train_test = pd.concat([df_train.drop(columns=y_name, axis=1), df_test], axis=0, ignore_index=True)
-X_train_test = set_dtypes(X_train_test, level=5)
+X_train_test = set_dtypes(X_train_test)
 
 X_train_test.loc[0:len(df_train), 'IsTrain'] = 1
 X_train_test.loc[len(df_train):, 'IsTrain'] = 0
-
 
 X_ref = X_train_test.copy()
 

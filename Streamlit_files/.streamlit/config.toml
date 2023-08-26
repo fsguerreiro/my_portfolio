@@ -1,5 +1,4 @@
 [theme]
-
 primaryColor="#4fbff7"
 backgroundColor="#fefeff"
 secondaryBackgroundColor="#dfdffd"
@@ -7,7 +6,9 @@ textColor="#010c0c"
 font="serif"
 
 [global]
-
 dataFrameSerialization = "arrow"
+
+[deprecation]
+showPyplotGlobalUse = false
 
 
