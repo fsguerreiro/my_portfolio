@@ -20,6 +20,7 @@ from pycaret.classification import *
 # from mitosheet.streamlit.v1 import spreadsheet
 # import numpy as np
 
+st.set_option('deprecation.showPyplotGlobalUse', False)
 
 # Building functions:
 

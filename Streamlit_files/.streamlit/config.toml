@@ -8,7 +8,6 @@ font="serif"
 [global]
 dataFrameSerialization = "arrow"
 
-[deprecation]
-showPyplotGlobalUse = false
+
 
 
