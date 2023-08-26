@@ -344,11 +344,6 @@ def show_var_info(df):
 
             with col2t:
                 st.write('**Most frequent words**')
-                # df_col5 = pd.DataFrame(df.select_dtypes('object')[coluna].value_counts())
-                # df_col5.reset_index(inplace=True)
-                # st.dataframe(df_col5.head(10), hide_index=True, use_container_width=True)
-
-                # c = pd.DataFrame(' '.join(df[coluna].dropna()).split())
                 sp = ['(', ')', '.', ',', '"', "'"]
                 c = ' '.join(df[coluna].dropna())
                 for i in sp:
