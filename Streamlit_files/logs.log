@@ -18151,3 +18151,51 @@ A value is trying to be set on a copy of a slice from a DataFrame
 See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
 
 
+2023-08-28 12:10:06,956:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 12:10:06,956:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 12:10:06,956:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 12:10:06,956:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 12:10:16,313:WARNING:C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de python\my_portfolio\Streamlit_files\titanic_streamlit.py:674: SettingWithCopyWarning:
+
+
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+
+
+2023-08-28 12:10:16,313:WARNING:C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de python\my_portfolio\Streamlit_files\titanic_streamlit.py:675: SettingWithCopyWarning:
+
+
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+
+
+2023-08-28 12:14:52,496:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 12:14:52,496:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 12:14:52,496:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 12:14:52,496:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 12:15:00,246:WARNING:C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de python\my_portfolio\Streamlit_files\titanic_streamlit.py:676: SettingWithCopyWarning:
+
+
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+
+
+2023-08-28 12:15:00,246:WARNING:C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de python\my_portfolio\Streamlit_files\titanic_streamlit.py:677: SettingWithCopyWarning:
+
+
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+
+

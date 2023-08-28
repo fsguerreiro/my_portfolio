@@ -3,21 +3,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
-import time
 from math import ceil, floor
 from wordcloud import WordCloud
+from pycaret.classification import *
 
 from sklearn import preprocessing, impute
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.metrics import confusion_matrix
-from pycaret.classification import *
 
+# from sklearn.metrics import confusion_matrix
 # from sklearn import tree, svm
 # from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 # from sklearn.linear_model import LogisticRegression
 # from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-# from mitosheet.streamlit.v1 import spreadsheet
 # import numpy as np
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -199,7 +197,6 @@ with st.echo('above'):
     y_name = 'Survived'
     y = df_train[y_name]
 
-time.sleep(1)
 data_load_state.text("Datasets successfully loaded! (using st.cache_data)")
 
 df_train = set_dtypes(df_train)
@@ -639,7 +636,7 @@ class Pipelines:
     def classifiers_default(X_tgt, y_tgt, y_n):
         setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
               data_split_stratify=False, data_split_shuffle=False, fold_strategy='kfold')
-        best = compare_models(exclude=['lightgbm', 'dummy', 'svm', 'qda'], verbose=False, fold=5)
+        best = compare_models(verbose=False, fold=5)
         r = pull()
         r.drop(columns='TT (Sec)', inplace=True)
         st.dataframe(r, hide_index=True, use_container_width=True)
@@ -703,27 +700,24 @@ st.divider()
 
 st.subheader('Model training')
 
-st.write(':arrow_forward: **Training models using default parameters**')
-
-tog = st.toggle('Train ML models')
-
-if tog:
-
+if st.toggle('Train ML models'):
+    st.write(':arrow_forward: **Training models using default parameters...**')
     best_model = main_pipe.classifiers_default(X_tgt=X_train, y_tgt=y, y_n=y_name)
     chosen_model = best_model
 
-    want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
+    want_hyper = st.toggle('Hypertune best default model')
+
     if want_hyper:
-        st.write(':arrow_forward: **Training the top model varying parameters using Random Search**')
+        st.write(':arrow_forward: **Training the top model varying parameters using Random Search...**')
         tuned_ml = main_pipe.hypertuning_models(best_model)
         chosen_model = tuned_ml
 
-    st.write('The confusion matrix for the prediction is shown below.')
     X_pred_train = predict_model(chosen_model, data=X_train)
     y_surv_train = X_pred_train['prediction_label'].reset_index(drop=True)
-    df_conf = pd.DataFrame(confusion_matrix(y, y_surv_train), index=['True 0', 'True 1'],
-                           columns=['Predicted 0', 'Predicted 1'])
-    st.dataframe(df_conf)
+    # st.write('The confusion matrix for the prediction is shown below.')
+    # df_conf = pd.DataFrame(confusion_matrix(y, y_surv_train), index=['True 0', 'True 1'],
+    #                        columns=['Predicted 0', 'Predicted 1'])
+    # st.dataframe(df_conf)
 
     st.divider()
     st.subheader('Model testing')
