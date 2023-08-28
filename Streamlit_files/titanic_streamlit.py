@@ -644,6 +644,7 @@ class Pipelines:
         return best
 
     @staticmethod
+    @st.cache_resource
     def hypertuning_models(_best):
         tuned = tune_model(_best, choose_better=True, verbose=False, search_library='scikit-optimize')
         r2 = pull()

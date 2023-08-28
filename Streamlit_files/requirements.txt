@@ -5,4 +5,4 @@ scikit-optimize
 seaborn
 pycaret
 wordcloud
-numpy
+numpy=1.25
