@@ -645,7 +645,7 @@ class Pipelines:
 
     @staticmethod
     def hypertuning_models(_best):
-        tuned = tune_model(_best, choose_better=True)
+        tuned = tune_model(_best, choose_better=True, verbose=False, search_library='scikit-optimize')
         r2 = pull()
         st.dataframe(r2, hide_index=False, use_container_width=True)
         st.write('The accuracy for the hypertuned model is {}.'.format(r2.loc['Mean', 'Accuracy']))
