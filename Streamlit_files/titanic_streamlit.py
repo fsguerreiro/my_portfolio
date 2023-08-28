@@ -636,7 +636,7 @@ class Pipelines:
     def classifiers_default(X_tgt, y_tgt, y_n):
         setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
               data_split_stratify=False, data_split_shuffle=False, fold_strategy='kfold')
-        best = compare_models(verbose=False, fold=5, budget_time=3)
+        best = compare_models(verbose=False, fold=5, exclude=['lightgbm', 'dummy', 'svm', 'qda'])
         r = pull()
         r.drop(columns='TT (Sec)', inplace=True)
         st.dataframe(r, hide_index=True, use_container_width=True)
