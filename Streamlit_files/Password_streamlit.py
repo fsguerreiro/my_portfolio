@@ -32,6 +32,9 @@ class Password:
                 has_special = any(c in self.special_chr for c in pwd)
                 check_req.append(has_special)
 
+            no_repeat = len(pwd) == len(set(pwd))
+            check_req.append(no_repeat)
+
             meet_requirement = all(check_req)
 
         return pwd
@@ -41,17 +44,14 @@ st.set_page_config(page_title='Password generator', page_icon=':memo:', layout='
 
 st.title('Password generator tool')
 
-col1, col2, col3 = st.columns([1, 1, 1], gap='large')
+w_digits = st.checkbox('Include digits')
+w_special = st.checkbox('Include special characters')
+
+col1, _ = st.columns([1, 2], gap='large')
 with col1:
     len_pass = st.slider('Select password length: ', 8, 24, 8, 1)
 
-with col2:
-    w_digits = st.checkbox('Include digits')
-
-with col3:
-    w_special = st.checkbox('Include special characters')
-
 if st.button('Create password'):
     final_pwd = Password(w_digits, w_special).create_pwd(len_pass)
-    st.write(f':heavy_check_mark: **Your password is {final_pwd}**')
-
+    st.write(f':heavy_check_mark: Your password is...')
+    st.text(f'{final_pwd}')
