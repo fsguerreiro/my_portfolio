@@ -5,3 +5,4 @@ scikit-optimize
 seaborn
 pycaret
 wordcloud
+numpy
