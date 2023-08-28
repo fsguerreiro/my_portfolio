@@ -705,52 +705,54 @@ st.subheader('Model training')
 
 st.write(':arrow_forward: **Training models using default parameters**')
 
-# st.stop()
+tog = st.toggle('Train ML models')
 
-best_model = main_pipe.classifiers_default(X_tgt=X_train, y_tgt=y, y_n=y_name)
-chosen_model = best_model
+if tog:
 
-want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
-if want_hyper:
-    st.write(':arrow_forward: **Training the top model varying parameters using Random Search**')
-    tuned_ml = main_pipe.hypertuning_models(best_model)
-    chosen_model = tuned_ml
+    best_model = main_pipe.classifiers_default(X_tgt=X_train, y_tgt=y, y_n=y_name)
+    chosen_model = best_model
 
-st.write('The confusion matrix for the prediction is shown below.')
-X_pred_train = predict_model(chosen_model, data=X_train)
-y_surv_train = X_pred_train['prediction_label'].reset_index(drop=True)
-df_conf = pd.DataFrame(confusion_matrix(y, y_surv_train), index=['True 0', 'True 1'],
-                       columns=['Predicted 0', 'Predicted 1'])
-st.dataframe(df_conf)
+    want_hyper = st.checkbox('Check if you want to hypertune parameters on model')
+    if want_hyper:
+        st.write(':arrow_forward: **Training the top model varying parameters using Random Search**')
+        tuned_ml = main_pipe.hypertuning_models(best_model)
+        chosen_model = tuned_ml
 
-st.divider()
-st.subheader('Model testing')
+    st.write('The confusion matrix for the prediction is shown below.')
+    X_pred_train = predict_model(chosen_model, data=X_train)
+    y_surv_train = X_pred_train['prediction_label'].reset_index(drop=True)
+    df_conf = pd.DataFrame(confusion_matrix(y, y_surv_train), index=['True 0', 'True 1'],
+                           columns=['Predicted 0', 'Predicted 1'])
+    st.dataframe(df_conf)
 
-with st.echo():
-    X_pred = predict_model(chosen_model, data=X_test)
-    y_surv = X_pred['prediction_label'].reset_index(drop=True)
-    df_submit = pd.concat([df_test['PassengerId'], y_surv], axis=1, ignore_index=True)
-    df_submit.columns = ['PassengerId', 'Survived']
-    csv_submit = df_submit.to_csv(index=False)
+    st.divider()
+    st.subheader('Model testing')
 
-with st.expander('Click here to see the test dataset and the predicted values of the target feature'):
-    tab_pred, tab_test = st.tabs(['Predicted values', 'Test dataset'])
-    with tab_pred:
-        st.dataframe(df_submit, hide_index=True, use_container_width=True)
+    with st.echo():
+        X_pred = predict_model(chosen_model, data=X_test)
+        y_surv = X_pred['prediction_label'].reset_index(drop=True)
+        df_submit = pd.concat([df_test['PassengerId'], y_surv], axis=1, ignore_index=True)
+        df_submit.columns = ['PassengerId', 'Survived']
+        csv_submit = df_submit.to_csv(index=False)
 
-    with tab_test:
-        st.dataframe(df_test, hide_index=True, use_container_width=True)
+    with st.expander('Click here to see the test dataset and the predicted values of the target feature'):
+        tab_pred, tab_test = st.tabs(['Predicted values', 'Test dataset'])
+        with tab_pred:
+            st.dataframe(df_submit, hide_index=True, use_container_width=True)
+
+        with tab_test:
+            st.dataframe(df_test, hide_index=True, use_container_width=True)
 
 
-def download_file():
-    st.write(':arrow_forward: **Download dataframe into csv file**')
-    filename = st.text_input('Enter file name:', value=p_title + '_file.csv')
-    filename = str(filename)
-    st.caption('*file name must end with .csv')
-    if filename.endswith('.csv'):
-        st.download_button(label="Download csv file", data=csv_submit, file_name=filename, mime='text/csv')
+    def download_file():
+        st.write(':arrow_forward: **Download dataframe into csv file**')
+        filename = st.text_input('Enter file name:', value=p_title + '_file.csv')
+        filename = str(filename)
+        st.caption('*file name must end with .csv')
+        if filename.endswith('.csv'):
+            st.download_button(label="Download csv file", data=csv_submit, file_name=filename, mime='text/csv')
 
-    else:
-        st.write(':x: File cannot be download! The file name must end with .csv')
+        else:
+            st.write(':x: File cannot be download! The file name must end with .csv')
 
-download_file()
+    download_file()

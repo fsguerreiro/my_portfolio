@@ -18127,3 +18127,27 @@ Alternately, you can install this by running `pip install pycaret[models]`
 2023-08-26 15:30:29,650:INFO:Logistic Regression Imported successfully
 2023-08-26 15:30:29,650:INFO:Starting cross validation
 2023-08-26 15:30:29,650:INFO:Cross validating with KFold(n_splits=5, random_state=None, shuffle=False), n_jobs=-1
+2023-08-28 11:42:29,732:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 11:42:29,732:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 11:42:29,733:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 11:42:29,733:WARNING:
+'cuml' is a soft dependency and not included in the pycaret installation. Please run: `pip install cuml` to install.
+2023-08-28 11:42:42,427:WARNING:C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de python\my_portfolio\Streamlit_files\titanic_streamlit.py:674: SettingWithCopyWarning:
+
+
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+
+
+2023-08-28 11:42:42,428:WARNING:C:\Users\ferna\Desktop\Python e Ciencia de dados\Arquivos de python\my_portfolio\Streamlit_files\titanic_streamlit.py:675: SettingWithCopyWarning:
+
+
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+
+
