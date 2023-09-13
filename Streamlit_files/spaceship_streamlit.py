@@ -91,9 +91,9 @@ def set_dtypes(df, level=5):
 @st.cache_data
 def load_data():
     train = pd.read_csv(
-        r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_train.csv')
+        r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/spaceship_train.csv')
     test = pd.read_csv(
-        r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/titanic_test.csv')
+        r'https://raw.githubusercontent.com/fsguerreiro/my_portfolio/main/Streamlit_files/spaceship_test.csv')
 
     return train, test
 
@@ -103,18 +103,25 @@ def load_data():
 
 
 def label_def():
-    feats = ['Passenger identification number in the dataset',
-             'Survival status: 0 if passed away or 1 if survived',
-             'A proxy for socio-economic status: 1 for upper, 2 for middle and 3 for lower classes',
-             'Passenger name',
-             'Passenger gender',
-             'Age in years: It is fractional if less than 1 or in the form of xx.5 if estimated',
-             'Number of siblings and spouses',
-             'Number of parents and children',
-             'Ticket number',
-             'Passenger fare',
-             'Cabin number',
-             'Port of embarkation: C = Cherbourg, Q = Queenstown, S = Southampton']
+    feats = ['A unique Id for each passenger. Each Id takes the form gggg_pp where gggg indicates a group the '
+             'passenger is travelling with and pp is their number within the group. People in a group are often '
+             'family members, but not always.',
+             'The planet the passenger departed from, typically their planet of permanent residence.',
+             'Indicates whether the passenger elected to be put into suspended animation for the duration of the '
+             'voyage. Passengers in cryosleep are confined to their cabins.',
+             'The cabin number where the passenger is staying. Takes the form deck/num/side, where side can be either '
+             'P for Port or S for Starboard.',
+             'The planet the passenger will be debarking to.',
+             'The age of the passenger.',
+             'Whether the passenger has paid for special VIP service during the voyage.',
+             'Amount the passenger has billed at this Spaceship Titanic luxury amenity.',
+             'Amount the passenger has billed at this Spaceship Titanic luxury amenity.',
+             'Amount the passenger has billed at this Spaceship Titanic luxury amenity.',
+             'Amount the passenger has billed at this Spaceship Titanic luxury amenity.',
+             'Amount the passenger has billed at this Spaceship Titanic luxury amenity.',
+             'The first and last names of the passenger.',
+             'Whether the passenger was transported to another dimension. This is the target, the column you are '
+             'trying to predict.']
 
     return feats
 
@@ -123,69 +130,64 @@ def func_feat(x, x_ref):
     dict_feat = {'AgeInterval': {'message_box': "Add 'AgeInterval' categorical feature: Age data is split into 4 bins",
                                  'method': pd.qcut(x['Age'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')},
 
-                 'FareInterval': {'message_box': "Add 'FareInterval' categorical feature: Fare data is split into 4 "
-                                                 "bins",
-                                  'method': pd.qcut(x['Fare'], [0, 0.25, 0.5, 0.75, 1], duplicates='drop')},
+                 'TotalBilled': {'message_box': "Add 'TotalBilled' numerical feature: sum of all local amenities",
+                                 'method': x['RoomService'] + x['FoodCourt'] + x['ShoppingMall'] + x['Spa'] + x['VRDeck']},
 
-                 'FarePp': {'message_box': "Add 'FarePp' numerical feature: ratio of Fare values to the family size",
-                            'method': x['Fare'] / (x['SibSp'] + x['Parch'] + 1)},
+                 'Deck': {'message_box': "Add 'Deck' categorical feature: Deck of the passengers cabin",
+                          'method': x_ref['Cabin'].str[0].astype('category')},
+                 #
+                 # 'FmSize': {'message_box': "Add 'FmSize' numerical feature: sum of 'SibSp' and 'Parch'",
+                 #            'method': x['SibSp'] + x['Parch'] + 1},
+                 #
+                 # 'Title': {'message_box': "Add 'Title' categorical feature: title of each passenger name",
+                 #           'method': x_ref['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1]).astype('category')},
 
-                 'FmSize': {'message_box': "Add 'FmSize' numerical feature: sum of 'SibSp' and 'Parch'",
-                            'method': x['SibSp'] + x['Parch'] + 1},
-
-                 'Title': {'message_box': "Add 'Title' categorical feature: title of each passenger name",
-                           'method': x_ref['Name'].apply(lambda w: w.split('. ')[0].split(', ')[1]).astype('category')},
-
-                 'IsAlone': {'message_box': "Add 'IsAlone' categorical feature: binary level to indicate whether the "
-                                            "passenger was travelling alone or not",
-                             'method': ((x['Parch'] == 0) & (x['SibSp'] == 0)).astype('category')},
-
-                 'HasCabin': {'message_box': "Add 'HasCabin' categorical feature: binary level to indicate whether the "
-                                             "passenger was in a cabin",
-                              'method': x_ref['Cabin'].notna().astype('category')},
-
-                 'MultiTicket': {'message_box': "Add 'MultiTicket' numerical feature: number of people to hold the "
-                                                "same ticket number including the passenger himself",
-                                 'method': x_ref['Ticket'].map(x_ref['Ticket'].value_counts()).astype('category')}
+                 # 'IsAlone': {'message_box': "Add 'IsAlone' categorical feature: binary level to indicate whether the "
+                 #                            "passenger was travelling alone or not",
+                 #             'method': ((x['Parch'] == 0) & (x['SibSp'] == 0)).astype('category')},
+                 #
+                 'Side': {'message_box': "Add 'Side' categorical feature: side of the passengers cabin",
+                              'method': x_ref['Cabin'].str[-1].astype('category')}
+                 #
+                 # 'MultiTicket': {'message_box': "Add 'MultiTicket' numerical feature: number of people to hold the "
+                 #                                "same ticket number including the passenger himself",
+                 #                 'method': x_ref['Ticket'].map(x_ref['Ticket'].value_counts()).astype('category')}
                  }
 
     return dict_feat
 
 
 def introduction():
-    st.title(':passenger_ship: Titanic - Machine Learning from Disaster (kaggle competition)', anchor='titanic_train')
+    st.title(':passenger_ship: Spaceship Titanic - Predict which passengers are transported to an alternate dimension '
+             '(kaggle competition)', anchor='titanic_train')
 
     st.write('''
-    The sinking of the Titanic is one of the most infamous shipwrecks in history. On April 15, 1912, 
-    during her maiden voyage, the widely considered “unsinkable” RMS Titanic sank after colliding with an iceberg. 
-    Unfortunately, there weren’t enough lifeboats for everyone onboard, resulting in the death of 1502 out of 2224 
-    passengers and crew.
+    Welcome to the year 2912, where your data science skills are needed to solve a cosmic mystery. We've 
+    received a transmission from four light-years away and things aren't looking good.
 
-    While there was some element of luck involved in surviving, it seems some groups of people were more likely to 
-    survive than others. The goal of this competition is to build a predictive model that answers the question: “what 
-    sorts of people were more likely to survive?” using passenger data (ie name, age, gender, socio-economic class, 
-    etc). 
+    The Spaceship Titanic was an interstellar passenger liner launched a month ago. With almost 13,000 passengers on 
+    board, the vessel set out on its maiden voyage transporting emigrants from our solar system to three newly 
+    habitable exoplanets orbiting nearby stars.
 
-    In this competition, it's granted access to two similar datasets that include passenger information like 
-    name, age, gender, socio-economic class, etc. One dataset is titled **train.csv** and the other is titled 
-    **test.csv**.
-
-    **Train.csv** will contain the details of a subset of the passengers on board (891 to be exact) and importantly, 
-    will reveal whether they survived or not, also known as the “ground truth”. The **test.csv** dataset contains 
-    similar information but does not disclose the “ground truth” for each passenger. Predicting these outcomes is the 
-    objective.
+    While rounding Alpha Centauri en route to its first destination—the torrid 55 Cancri E—the unwary Spaceship 
+    Titanic collided with a spacetime anomaly hidden within a dust cloud. Sadly, it met a similar fate as its 
+    namesake from 1000 years before. Though the ship stayed intact, almost half of the passengers were transported to 
+    an alternate dimension!
+    
+    To help rescue crews and retrieve the lost passengers, you are challenged to predict which passengers were 
+    transported by the anomaly using records recovered from the spaceship’s damaged computer system.
     ''')
 
     st.header('Training dataset visualization', help='Both datasets are available for download on [kaggle]('
-                                                     'https://www.kaggle.com/competitions/titanic).')
+                                                     'https://www.kaggle.com/competitions/spaceship-titanic).')
 
     st.write('''
     To get started, the datasets were loaded from my github account:
     ''')
 
 
-p_title = 'Titanic challenge'
-st.set_page_config(page_title=p_title, page_icon=":ship:", layout='wide')
+p_title = 'Spaceship challenge'
+st.set_page_config(page_title=p_title, page_icon=":space_invader:", layout='wide')
 
 introduction()
 
@@ -194,7 +196,7 @@ introduction()
 with st.echo('above'):
     data_load_state = st.text('Loading data...')
     df_train, df_test = load_data()
-    y_name = 'Survived'
+    y_name = 'Transported'
     y = df_train[y_name]
 
 data_load_state.text("Datasets successfully loaded! (using st.cache_data)")
@@ -221,7 +223,7 @@ st.dataframe(df_filtered, hide_index=True, use_container_width=True)
 
 # Expanded tab to show explanation of the variables
 
-st.write('Here is a brief explanation about the passenger features:')
+st.write('Here is a brief explanation about the features:')
 with st.expander("See features note"):
     features = label_def()
     df_exp = pd.DataFrame({'Variable': df_train.columns, 'Definition': features})
@@ -623,7 +625,8 @@ class Pipelines:
 
     @staticmethod
     def preproc_pipeline(x):
-        pipe2 = Pipeline([('drpO', DropObj()), ('imp', FillNA()), ('feng', FeatureEng()),
+        pipe2 = Pipeline([('drpO', DropObj()), ('imp', FillNA()),
+                          ('feng', FeatureEng()),
                           ('drp', DropColumn()), ('enc', Encoder())])
         return pipe2.fit_transform(x)
 
@@ -636,7 +639,7 @@ class Pipelines:
     def classifiers_default(X_tgt, y_tgt, y_n):
         setup(data=pd.concat([X_tgt, y_tgt], axis=1), target=y_n, preprocess=False, fold=5, verbose=False,
               data_split_stratify=False, data_split_shuffle=False, fold_strategy='kfold')
-        best = compare_models(verbose=False, fold=5, exclude=['lightgbm', 'dummy', 'svm', 'qda'])
+        best = compare_models(verbose=False, fold=5, include=['gbc', 'lr', 'knn', 'dt', 'rf'])
         r = pull()
         r.drop(columns='TT (Sec)', inplace=True)
         st.dataframe(r, hide_index=True, use_container_width=True)
@@ -727,7 +730,12 @@ if st.toggle('Train ML models'):
         X_pred = predict_model(chosen_model, data=X_test)
         y_surv = X_pred['prediction_label'].reset_index(drop=True)
         df_submit = pd.concat([df_test['PassengerId'], y_surv], axis=1, ignore_index=True)
-        df_submit.columns = ['PassengerId', 'Survived']
+        df_submit.columns = ['PassengerId', y_name]
+
+        proxy_y = {df_submit[y_name].unique()[0]: True, df_submit[y_name].unique()[1]: False}
+        df_submit = df_submit.replace(proxy_y)
+
+
         csv_submit = df_submit.to_csv(index=False)
 
     with st.expander('Click here to see the test dataset and the predicted values of the target feature'):

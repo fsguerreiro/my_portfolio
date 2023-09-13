@@ -7,3 +7,5 @@ pycaret
 wordcloud
 numpy
 optuna
+whisper
+openai
